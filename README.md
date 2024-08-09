@@ -22,8 +22,10 @@ Running the script
 ```
 
 To inspect the results, click the "list"-icons to view the findings:
+
 ![image](https://github.com/user-attachments/assets/ba21617c-2e16-4b7e-9344-374f7b105c4a)
 
+This will open the results in a gridview, allowing you to inspect the results and select multiple guests. When you click "Ok" the selected guests UserPrincipalNames are copied to the clipboard.
 
 Parameter | Description
 --- | ---
@@ -31,3 +33,12 @@ tenantId (mandatory) | Your Entra ID tenant ID 'string'
 appId (mandatory) | The application ID for your registered application in Azure AD 'string'
 appSecret (mandatory) | The client secret for your registered application
 thresholdDaysAgo | Number of days without activity for guests to be consideres inactive. Default is 180 days 'int'
+
+
+## Sanity checks
+
+*Disabled users*
+Before removing disabled users, check their last sign-in activity first
+
+*Never logged inn*
+Before deleting og disabling these users, make sure they where not recently invited/added
