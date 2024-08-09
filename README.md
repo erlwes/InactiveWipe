@@ -1,28 +1,29 @@
 # InactiveWipe
 A script to help stay in control of guest access in Entra ID
 
-# Features
+## Features
 The script will identify ...
 * Disabled guests
 * Guests that never logged in and/or did not accept the invitation
 * Guests that have no logins for the last 180 days (interactive or noninteractive)
 
-# Looks like this
+## Looks like this
 ![InactiveWipe](https://github.com/user-attachments/assets/58724cce-7cfe-4d79-afbf-b907687381d3)
 
-# Prerequisites
+## Prerequisites
+* A registered app with the `User Read All` Graph permission
+See this [step-by-step guide](https://github.com/erlwes/InactiveWipe/blob/main/AppRegistration.md)
 
-### Microsoft Graph API Permissions
-The script requires access to Microsoft Graph API. Ensure that you have the necessary API permissions set up for your application.
+## Usage
 
-# Usage
-
-### Running the script
+Running the script
 ```PowerShell
 .\InactiveWipe.ps1 -tenantId <your-tenant-id> -appId <your-app-id> -appSecret <your-app-secret>
 ```
 
-### Parameters
+To inspect the results, click the "list"-icons to view the findings:
+
+
 Parameter | Description
 --- | ---
 tenantId (mandatory) | Your Entra ID tenant ID 'string'
