@@ -1,5 +1,5 @@
 # Step 1: Log in to Azure Portal
-1. Go to Entra Portal.
+1. Go to [Entra Portal](https://portal.azure.com/)
 2. Sign in with your Azure account that has permissions to manage Entra ID.
 
 # Step 2: Create an App Registration
