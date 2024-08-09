@@ -4,7 +4,7 @@
 
 # Step 2: Create an App Registration
 1. In the Azure Portal, navigate to [Microsoft Entra ID](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview) from the left-hand menu.
-2. In the Manage-section, select App registrations.
+2. In the Manage-section, select [App registrations](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/RegisteredApps).
 3. Click on New registration at the top of the page.
 4. Fill in the following details:
 5. Name: Enter a name for your app (e.g., InactiveGuestCleaner)
