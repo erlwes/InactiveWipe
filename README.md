@@ -1,27 +1,19 @@
-```
-██╗███╗░░██╗░█████╗░░█████╗░████████╗██╗██╗░░░██╗███████╗░██╗░░░░░░░██╗██╗██████╗░███████╗
-██║████╗░██║██╔══██╗██╔══██╗╚══██╔══╝██║██║░░░██║██╔════╝░██║░░██╗░░██║██║██╔══██╗██╔════╝
-██║██╔██╗██║███████║██║░░╚═╝░░░██║░░░██║╚██╗░██╔╝█████╗░░░╚██╗████╗██╔╝██║██████╔╝█████╗░░
-██║██║╚████║██╔══██║██║░░██╗░░░██║░░░██║░╚████╔╝░██╔══╝░░░░████╔═████║░██║██╔═══╝░██╔══╝░░
-██║██║░╚███║██║░░██║╚█████╔╝░░░██║░░░██║░░╚██╔╝░░███████╗░░╚██╔╝░╚██╔╝░██║██║░░░░░███████╗
-╚═╝╚═╝░░╚══╝╚═╝░░╚═╝░╚════╝░░░░╚═╝░░░╚═╝░░░╚═╝░░░╚══════╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░░░░╚══════╝
-```
-
+# InactiveWipe
 A script to help stay in control of guest access in Entra ID
 
+# Features
 The script will identify ...
 * Disabled guests
 * Guests that never logged in and/or did not accept the invitation
 * Guests that have no logins for the last 180 days (interactive or noninteractive)
 
+# Looks like this
 ![InactiveWipe](https://github.com/user-attachments/assets/58724cce-7cfe-4d79-afbf-b907687381d3)
 
 # Prerequisites
 
 ### Microsoft Graph API Permissions
 The script requires access to Microsoft Graph API. Ensure that you have the necessary API permissions set up for your application.
-
-
 
 # Usage
 
