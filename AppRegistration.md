@@ -7,7 +7,7 @@
 2. In the Manage-section, select [App registrations](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/RegisteredApps).
 3. Click on New registration at the top of the page.
 4. Fill in the following details:
-5. Name: Enter a name for your app (e.g., InactiveGuestCleaner)
+5. Name: Enter a name for your app (e.g., 'InactiveWipe' or generic like 'UserReadAllApp')
 6. Supported account types: Choose the appropriate option based on your needs (usually, "Accounts in this organizational directory only" is selected).
 7. Redirect URI (optional): You can leave this blank for this script, as it is not a web or mobile application.
 8. Click Register to create the application.
