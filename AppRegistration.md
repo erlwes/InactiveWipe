@@ -3,7 +3,7 @@
 2. Sign in with your Azure account that has permissions to manage Entra ID.
 
 # Step 2: Create an App Registration
-1. In the Azure Portal, navigate to Microsoft Entra ID from the left-hand menu.
+1. In the Azure Portal, navigate to [Microsoft Entra ID](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview) from the left-hand menu.
 2. In the Manage-section, select App registrations.
 3. Click on New registration at the top of the page.
 4. Fill in the following details:
