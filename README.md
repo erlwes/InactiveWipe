@@ -1,7 +1,8 @@
 # InactiveWipe
 A graphical interface script to help stay in control of guest access in Entra ID
 
-### Features
+
+### 🟡Features
 The script will identify ...
 * Disabled guests
 * Guests that never logged in and/or did not accept the invitation
@@ -9,11 +10,13 @@ The script will identify ...
 
 ![InactiveWipe](https://github.com/user-attachments/assets/58724cce-7cfe-4d79-afbf-b907687381d3)
 
-### Prerequisites
+
+### 🟡Prerequisites
 * A registered app with the `User Read All` Graph permission
 See this [step-by-step guide](https://github.com/erlwes/InactiveWipe/blob/main/AppRegistration.md)
 
-### Usage
+
+### 🟡Usage
 Running the script
 ```PowerShell
 .\InactiveWipe.ps1 -tenantId <your-tenant-id> -appId <your-app-id> -appSecret <your-app-secret>
@@ -33,7 +36,7 @@ appSecret (mandatory) | The client secret for your registered application
 thresholdDaysAgo | Number of days without activity for guests to be consideres inactive. Default is 180 days 'int'
 
 
-### Sanity checks
+### 🟡Sanity checks
 
 **Disabled users**
 Before removing disabled users, check their last sign-in activity first
@@ -41,7 +44,8 @@ Before removing disabled users, check their last sign-in activity first
 **Never logged inn**
 Before deleting og disabling these users, make sure they where not recently invited/added
 
-### I found guest that can be wiped, now what?
+
+### 🟡I found guest that can be wiped, now what?
 1. Use the tool to identify and select users for removal (UPN copied to clipboard when clicking ok from gridview)
 2. Go to User blade in Entra AD portal
 3. Select "Bulk operations" and "Bulk delete"
