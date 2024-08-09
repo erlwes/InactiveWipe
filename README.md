@@ -22,6 +22,7 @@ Running the script
 ```
 
 To inspect the results, click the "list"-icons to view the findings:
+![image](https://github.com/user-attachments/assets/ba21617c-2e16-4b7e-9344-374f7b105c4a)
 
 
 Parameter | Description
