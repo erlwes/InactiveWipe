@@ -1,9 +1,12 @@
 # To-do
 * Insight: Licenced guests. Save money by wiping.
-* Insight: List all unique external email domains across guests. Attack surfacee.
+* Insight: List all unique external email domains across guests. Attack surface.
 
 # Probably not
-* Guests with rolles and memberships (would require more graph permissions i believe). Maybe not in this tool? KISS?
+* Show guests with roles or PIM eligibility
+* Show guest memberships
+
+These would require aditional graph permissions. Out of-scope for this tool i think. KISS.
 
 # Maybe
 * Swap modes between members and guests? IT-tends to have better control over their member users, since these are created by IT. Tool is focused on guests per now.
