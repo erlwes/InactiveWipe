@@ -1,5 +1,5 @@
 # To-do
-* Use @odata.nextLink to get results above 999 🤦‍♂️
+* Use @odata.nextLink to get results above 999 🤦‍♂️ ✅
 * Insight: Licenced guests. Save money by wiping. Probably more common for member users. Member users are cluttered with resource users.
 * Insight: List all unique external email domains across guests. Attack surface ✅
 
