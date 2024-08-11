@@ -1,15 +1,25 @@
 # InactiveWipe
-A graphical interface script to help stay in control of guest access in Entra ID
+A graphical interface script to help stay in control of guest access in Entra ID.
+The tool helps identify disabled, inactive and never-used guest users.
 
 
-### 🟡 Features
-The script will identify ...
-* Disabled guests
-* Guests that never logged in and/or did not accept the invitation
-* Guests that have no logins for the last 180 days (interactive or noninteractive)
+### 🟡 The GUI
+A graphical interface displays the results.
+
+![image](https://github.com/user-attachments/assets/7b414811-6545-4f0d-ac55-d272885c859b)
+
+
+### 🟡 List view
+The results can be inspected by clicking the "list"-icons in GUI. Select all or multiple users.
+When clicking ok, the users UPN is copied to clipboard for bulke delete/disable operations. The script is read-only and will **not** disable or delete any users.
 
 ![image](https://github.com/user-attachments/assets/4e4927c0-b982-48ab-98ee-341caa86e050)
 
+
+### 🟡 Console
+Errors and some info is outputed to console when running.
+
+![image](https://github.com/user-attachments/assets/35e2d01a-1baf-449f-a04d-c6fe2b147f58)
 
 
 ### 🟡 Prerequisites
@@ -22,12 +32,6 @@ Running the script
 ```PowerShell
 .\InactiveWipe.ps1 -tenantId <your-tenant-id> -appId <your-app-id> -appSecret <your-app-secret>
 ```
-
-To inspect the results, click the "list"-icons to view the findings:
-
-![image](https://github.com/user-attachments/assets/ba21617c-2e16-4b7e-9344-374f7b105c4a)
-
-This will open the results in a gridview, allowing you to inspect the results and select multiple guests. When you click "Ok" the selected guests UserPrincipalNames are copied to the clipboard.
 
 Parameter | Description
 --- | ---
@@ -47,6 +51,8 @@ Before deleting og disabling these users, make sure they where not recently invi
 
 
 ### 🟡 I found guest that can be wiped, now what?
+If you are not familiar with PowerShell to perform batch operations like remove and disable/block of users in Entra ID, you can use bulk operations in the Entra AD portal.
+
 1. Use the tool to identify and select users for removal (UPN copied to clipboard when clicking ok from gridview)
 2. Go to User blade in Entra AD portal
 3. Select "Bulk operations" and "Bulk delete"
