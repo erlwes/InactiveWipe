@@ -156,6 +156,7 @@ catch {
 #endregion GraphAuth
 
 #Region GraphQuery
+$AllResults = @()
 $header = @{
     'Authorization' = "$($Token.token_type) $($Token.access_token)"
     'Content-type'  = 'application/json'
@@ -164,7 +165,24 @@ $url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled
 
 try {
     $Result = Invoke-RestMethod -Method GET -headers $header -Uri $url -ErrorAction Stop
-    Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"    
+    Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"
+    $AllResults += $Result.value
+    $NextPage = $Result.'@odata.nextLink'
+    
+    $i = 2
+    While ($null -ne $NextPage) {
+        try {
+            Clear-Variable AdditionalResults -ErrorAction SilentlyContinue
+            $AdditionalResults = Invoke-RestMethod -Method GET -headers $header -Uri $NextPage -ErrorAction Stop
+            Write-Log -Level 1 -Message "Invoke-RestMethod: Query, page $i '$($url.Substring(0, 55) + '...')'"
+            $AllResults += $AdditionalResults.value
+            $NextPage = $AdditionalResults.'@odata.nextLink'
+            $i ++
+        }
+        catch {
+            Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exeption.Message)"
+        }
+    }
     Remove-Variable -Name token -ErrorAction SilentlyContinue
 }
 catch {
@@ -187,7 +205,7 @@ $NotAcceptedInvitation = @()
 $EmailDomains = @()
 $ThresholdDaysAgo = [int]$ThresholdDaysAgo
 
-$result.value | ForEach-Object {
+$AllResults | ForEach-Object {
     $user = $_
     if ($user.UserType -eq $UserType) {
         
@@ -258,7 +276,7 @@ $result.value | ForEach-Object {
 }
 $timer.Stop()
 Write-Log -Level 0 -Message  "Process Graph-results - Done in $($timer.Elapsed.TotalSeconds) seconds"
-Write-Log -Level 0 -Message  "[$(($result.value).count)]`tTotal: Users found"
+Write-Log -Level 0 -Message  "[$($AllResults.count)]`tTotal: Users found"
 Write-Log -Level 0 -Message  "[$($AllUsers.count)]`t  Guests: all guests"
 Write-Log -Level 0 -Message  "[$($DisabledGuests.count)]`t    Disabled: Guest users that are disabled"
 Write-Log -Level 0 -Message  "[$($EnabledGuests.count)]`t    Enabled: Guest users that are enabled"
