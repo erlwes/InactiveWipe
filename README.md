@@ -13,7 +13,7 @@ A graphical interface displays the results.
 The results can be inspected by clicking the "list"-icons in GUI. Select all or multiple users.
 When clicking ok, the users UPN is copied to clipboard for bulke delete/disable operations. The script is read-only and will **not** disable or delete any users.
 
-![image](https://github.com/user-attachments/assets/4e4927c0-b982-48ab-98ee-341caa86e050)
+![image](https://github.com/user-attachments/assets/644e3577-ed85-41bf-9bcc-65a333b23968)
 
 
 ### 🟡 Console
