@@ -41,14 +41,10 @@ appSecret (mandatory) | The client secret for your registered application
 thresholdDaysAgo | Number of days without activity for guests to be consideres inactive. Default is 180 days 'int'
 
 
-### 🟡 Sanity checks
-
-**Disabled users**
-Before removing disabled users, check their last sign-in activity first
-
-**Never logged inn**
-Before deleting og disabling these users, make sure they where not recently invited/added
-
+### 🟡 Considerations
+* Before removing disabled users, check their last sign-in activity first
+* Before removing users that have never signed in, make sure they where not recently invited/added (createdDateTime)
+* Don't store ClientSecret/Application Secret in script. Ideally, load it from a password manager, SecretStore or alike. If not, at least close process and clear command history
 
 ### 🟡 I found guest that can be wiped, now what?
 If you are not familiar with PowerShell to perform batch operations like remove and disable/block of users in Entra ID, you can use bulk operations in the Entra AD portal.
