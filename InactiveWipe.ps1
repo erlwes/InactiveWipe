@@ -9,7 +9,11 @@ Param (
     [string]$appSecret,
 
     [Parameter(Mandatory = $false)]
-    [int]$ThresholdDaysAgo = 180
+    [int]$ThresholdDaysAgo = 180,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$memberMode #EXPERIMENTAL!
+
 )
 '';''
 '██╗███╗░░██╗░█████╗░░█████╗░████████╗██╗██╗░░░██╗███████╗░██╗░░░░░░░██╗██╗██████╗░███████╗'
@@ -19,6 +23,17 @@ Param (
 '██║██║░╚███║██║░░██║╚█████╔╝░░░██║░░░██║░░╚██╔╝░░███████╗░░╚██╔╝░╚██╔╝░██║██║░░░░░███████╗'
 '╚═╝╚═╝░░╚══╝╚═╝░░╚═╝░╚════╝░░░░╚═╝░░░╚═╝░░░╚═╝░░░╚══════╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░░░░╚══════╝'
 ''
+
+if($memberMode) {
+    $UserType = 'Member'    
+    $UserPlural = 'members'
+}
+else {
+    $UserType = 'Guest'
+    $UserPlural = 'guests'
+}
+$Selection = ''
+
 #Region Functions
 Function Write-Log {
     param([string]$File, [ValidateSet(0, 1, 2, 3, 4)][int]$Level, [Parameter(Mandatory=$true)][string]$Message, [switch]$Silent)
@@ -59,31 +74,22 @@ Function Write-Log {
 
 Function Update-Gauges {
     [int]$Script:disabledPercentage = ($DisabledCount / $totalCount) * 100
-    $disabledLocationY = ($disabledLabel.Location.Y + 31) + (100 - $disabledPercentage)
-    $disabledGauge.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 6),$disabledLocationY
-    $disabledGauge.ClientSize = "30,$disabledPercentage"
-    if ($disabledPercentage -le 5) {$disabledGauge.BackColor = $gaugelevel1}
-    elseif ($disabledPercentage -le 10) {$disabledGauge.BackColor = $gaugelevel2}
-    elseif ($disabledPercentage -le 15) {$disabledGauge.BackColor = $gaugelevel3}
-    elseif ($disabledPercentage -gt 15) {$disabledGauge.BackColor = $gaugelevel4}
+    [int]$Script:neverSignedInPercentage = ($NeverSignedInCount / $totalCount) * 100
+    [int]$Script:inactivePercentage = ($InactiveCount / $totalCount) * 100
 
-    [int]$Script:inactivePercentage = ($InactiveCount / ($EnabledGuests.Count - $neverLoggedInCount)) * 100
-    $inactiveLocationY = ($inactiveLabel.Location.Y + 31) + (100 - $inactivePercentage)
-    $inactiveGauge.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 6),$inactiveLocationY
-    $inactiveGauge.ClientSize = "30,$inactivePercentage"
-    if ($inactivePercentage -le 5) {$inactiveGauge.BackColor = $gaugelevel1}
-    elseif ($inactivePercentage -le 10) {$inactiveGauge.BackColor = $gaugelevel2}
-    elseif ($inactivePercentage -le 15) {$inactiveGauge.BackColor = $gaugelevel3}
-    elseif ($inactivePercentage -gt 15) {$inactiveGauge.BackColor = $gaugelevel4}
+    $Script:PossibleToRemoveCount = ($DisabledCount + $NeverSignedInCount + $InactiveCount)
+    [int]$Script:ResultsPercentage = ($PossibleToRemoveCount / $totalCount) * 100
 
-    [int]$Script:neverLoggedInPercentage = ($NeverLoggedInCount / $EnabledGuests.Count) * 100
-    $neverLoggedInLocationY = ($neverLoggedInLabel.Location.Y + 31) + (100 - $neverLoggedInPercentage)
-    $neverLoggedInGauge.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 6),$neverLoggedInLocationY
-    $neverLoggedInGauge.ClientSize = "30,$neverLoggedInPercentage"
-    if ($neverLoggedInPercentage -le 5) {$neverLoggedInGauge.BackColor = $gaugelevel1}
-    elseif ($neverLoggedInPercentage -le 10) {$neverLoggedInGauge.BackColor = $gaugelevel2}
-    elseif ($neverLoggedInPercentage -le 15) {$neverLoggedInGauge.BackColor = $gaugelevel3}
-    elseif ($neverLoggedInPercentage -gt 15) {$neverLoggedInGauge.BackColor = $gaugelevel4}
+    $ResultsLocationY = ($ResultsLabel.Location.Y + 31) + (100 - $ResultsPercentage)
+    $ResultsGauge.Location = New-Object Drawing.Point ($ResultsLabel.Location.X + 6),$ResultsLocationY
+    $ResultsGauge.Width = 30
+    $ResultsGauge.Height = $Script:ResultsPercentage
+
+    if ($ResultsPercentage -le 5) {$ResultsGauge.BackColor = $gaugelevel1}
+    elseif ($ResultsPercentage -le 10) {$ResultsGauge.BackColor = $gaugelevel2}
+    elseif ($ResultsPercentage -le 15) {$ResultsGauge.BackColor = $gaugelevel3}
+    elseif ($ResultsPercentage -gt 15) {$ResultsGauge.BackColor = $gaugelevel4}
+    
 }
 
 Function Update-Text {
@@ -91,27 +97,40 @@ Function Update-Text {
     $disabledInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
     $disabledInfoTextBox.AppendText("$([int]$Script:disabledPercentage)%`n")
     $disabledInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
-    $disabledInfoTextBox.AppendText("$($disabledCount) out of $($totalCount) guest are disabled.")
+    $disabledInfoTextBox.AppendText("$($disabledCount) out of $($totalCount)`n$UserPlural are disabled.")
 
-    $neverLoggedInInfoTextBox.Clear()
-    $neverLoggedInInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
-    $neverLoggedInInfoTextBox.AppendText("$([int]$Script:neverLoggedInPercentage)%`n")
-    $neverLoggedInInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
-    $neverLoggedInInfoTextBox.AppendText("$($neverLoggedInCount) out of $($EnabledGuests.Count) guest never signed in.`n$NotAcceptecInvitationCount did not accept invitation.")
+    $neverSignedInInfoTextBox.Clear()
+    $neverSignedInInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
+    $neverSignedInInfoTextBox.AppendText("$([int]$Script:neverSignedInPercentage)%`n")
+    $neverSignedInInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
+    $neverSignedInInfoTextBox.AppendText("$($neverSignedInCount) out of $totalCount`n$UserPlural never signed in or did not accept invitation.")
 
     $inactiveInfoTextBox.Clear()
     $inactiveInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
     $inactiveInfoTextBox.AppendText("$([int]$Script:inactivePercentage)%`n")
     $inactiveInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
-    $inactiveInfoTextBox.AppendText("$($inactiveCount) out of $($EnabledGuests.Count - $neverLoggedInCount) has no logins for the last $ThresholdDaysAgo days.")
+    $inactiveInfoTextBox.AppendText("$($inactiveCount) out of $totalCount`n$UserPlural has no logins for the last $ThresholdDaysAgo days.")
 
-    $StartText.Text = "$($totalCount) out of $(($result.value).count) users`nare guests (~$((($($TotalCount / ($result.value).count)) * 100) -replace "\..+$")%)"
-    $Narrow1Text.Text = "$($EnabledGuests.count) enabled guests are left`tafter leaving out disabled guests"
-    $Narrow2Text.Text = "$($EnabledGuests.Count - $NeverLoggedInCount) guests are left, when leaving out those that never signed in"
+    $ResultText.Clear()
+    $ResultText.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
+    $ResultText.AppendText("$([int]$Script:ResultsPercentage)%`n")
+    $ResultText.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))    
+    $ResultText.AppendText("$Script:PossibleToRemoveCount out $TotalCount `n$UserPlural can potentially `nbe wiped.")
+
+    $InsightsInfoTextBox.Clear()
+    $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
+    $InsightsInfoTextBox.AppendText("Insights ")
     
-    $PossibleToRemoveCount = ($DisabledGuests.Count + $NeverLoggedInCount + $InactivePass1.count)
+    $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
+    $InsightsInfoTextBox.SelectionColor = $Yellow
+    $InsightsInfoTextBox.AppendText("💡")
+    $InsightsInfoTextBox.SelectionColor = $LabelColor
 
-    $ResultText.Text = "$PossibleToRemoveCount out $TotalCount could be removed (~$(($($PossibleToRemoveCount / $TotalCount) * 100) -replace "\..+$")%)."
+    $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
+    if (!$memberMode) {
+        $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($result.value).count) users are $UserPlural (~$((($($TotalCount / ($result.value).count)) * 100) -replace "\..+$")%)")
+        $InsightsInfoTextBox.AppendText("`n`nGuests are distributed across $(($EmailDomains | Select-Object -Unique).count) unique email domains")
+    }
 }
 #Endregion Functions
 
@@ -121,10 +140,10 @@ Function Update-Text {
 $url = "https://login.microsoftonline.com/$tenantId/oauth2/token"
 $resource = 'https://graph.microsoft.com/'
 $restbody = @{
-            grant_type    = 'client_credentials'
-            client_id     = $appId
-            client_secret = $AppSecret
-            resource      = $resource
+    grant_type    = 'client_credentials'
+    client_id     = $appId
+    client_secret = $AppSecret
+    resource      = $resource
 }
 try {
     $token = Invoke-RestMethod -Method POST -Uri $url -Body $restbody -ErrorAction Stop
@@ -145,8 +164,7 @@ $url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled
 
 try {
     $Result = Invoke-RestMethod -Method GET -headers $header -Uri $url -ErrorAction Stop
-    Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"
-    Write-Log -Level 0 -Message  "[$(($result.value).count)]`tTotal: Users found"
+    Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"    
     Remove-Variable -Name token -ErrorAction SilentlyContinue
 }
 catch {
@@ -154,63 +172,85 @@ catch {
 }
 #endregion GraphQuery
 
+# Uncomment to inspect raw results and quit
+#$result.value | Out-GridView;break
+
 #Region ProcessGuests
 Write-Log -Level 0 -Message  "Process Graph-results - Start"
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
-$AllGuests = @()
+$AllUsers = @()
 $DisabledGuests = @()
 $EnabledGuests = @()
-$InactivePass1 = @()
-$NeverLoggedIn = @()
+$InactiveUsers = @()
+$NeverSignedIn = @()
 $NotAcceptedInvitation = @()
+$EmailDomains = @()
 $ThresholdDaysAgo = [int]$ThresholdDaysAgo
 
 $result.value | ForEach-Object {
-    $guest = $_
-    if ($guest.UserType -eq 'Guest') {
-        $AllGuests += $guest        
-        if ($guest.accountEnabled -eq $false) {
-            $DisabledGuests += $guest
-        } else {
-            $EnabledGuests += $guest
-            if ($guest.signInActivity.lastSignInDateTime) {
-                $DaysSinceLastLogin = [int]((Get-Date) - [datetime](Get-Date ($guest.signInActivity.lastSignInDateTime) -ErrorAction SilentlyContinue)).TotalDays
-            }
-            else {
-                $DaysSinceLastLogin = $null
-            }
-            if ($guest.signInActivity.lastNonInteractiveSignInDateTime -eq $null) {
-                $DaysSinceLastNonIntLogin = $null
-            }
-            else {
-                $DaysSinceLastNonIntLogin = [int]((Get-Date) - [datetime](Get-Date ($guest.signInActivity.lastNonInteractiveSignInDateTime))).TotalDays
-            }
+    $user = $_
+    if ($user.UserType -eq $UserType) {
+        
+        Clear-Variable DaysSinceLastLogin, DaysSinceLastNonIntLogin, DateLastLogin, UserObj -ErrorAction SilentlyContinue
+        
+        # Calculate days since last login
+        if ($user.signInActivity.lastSignInDateTime) {
+            $DaysSinceLastLogin = [int]((Get-Date) - [datetime](Get-Date ($user.signInActivity.lastSignInDateTime) -ErrorAction SilentlyContinue)).TotalDays
+        }
+        else {
+            $DaysSinceLastLogin = $null
+        }
+
+        # Calculate days since last non-int login
+        if ($user.signInActivity.lastNonInteractiveSignInDateTime -eq $null) {
+            $DaysSinceLastNonIntLogin = $null
+        }
+        else {
+            $DaysSinceLastNonIntLogin = [int]((Get-Date) - [datetime](Get-Date ($user.signInActivity.lastNonInteractiveSignInDateTime))).TotalDays
+        }
+        
+        # Change date-format on last login date
+        if ($user.signInActivity.lastSignInDateTime) {
+            $DateLastLogin = [datetime](Get-Date ($user.signInActivity.lastSignInDateTime))
+        }
+        else {
+            $DateLastLogin = $null
+        }
+
+        $UserObj = [pscustomobject]@{
+            UserType                  = $user.UserType
+            accountEnabled            = $user.accountEnabled
+            creationType              = $user.creationType
+            externalUserState         = $user.externalUserState
+            createdDateTime           = [datetime](Get-Date ($user.createdDateTime))
+            companyName               = $user.companyName
+            displayName               = $user.displayName
+            jobTitle                  = $user.jobTitle
+            userPrincipalName         = ($user.userPrincipalName).ToLower()
+            AssignedLicenses          = $user.AssignedLicenses
+            mail                      = ($user.mail).ToLower()
+            mailDomain                = ($user.mail).ToLower() -replace '^.+@'
+            DateLastLogin             = $DateLastLogin
+            DaysSinceLastLogin        = $DaysSinceLastLogin
+            DateLastNonIntLogin       = if ($DaysSinceLastNonIntLogin -ne $null) { [datetime](Get-Date ($user.signInActivity.lastNonInteractiveSignInDateTime)) } else { $null }
+            DaysSinceLastNonIntLogin  = $DaysSinceLastNonIntLogin
+        }
+
+        $EmailDomains += $UserObj.mailDomain
+
+        $AllUsers += $UserObj        
+        if ($user.accountEnabled -eq $false) {
+            $DisabledGuests += $UserObj
+        }
+        else {
+            $EnabledGuests += $UserObj
             if ($DaysSinceLastLogin -ge $ThresholdDaysAgo -and ($DaysSinceLastNonIntLogin -eq $null -or $DaysSinceLastNonIntLogin -ge $ThresholdDaysAgo)) {
-                $InactivePass1 += [pscustomobject]@{
-                    UserType                  = $guest.UserType
-                    accountEnabled            = $guest.accountEnabled
-                    creationType              = $guest.creationType
-                    externalUserState         = $guest.externalUserState
-                    createdDateTime           = [datetime](Get-Date ($guest.createdDateTime))
-                    companyName               = $guest.companyName
-                    displayName               = $guest.displayName
-                    jobTitle                  = $guest.jobTitle
-                    userPrincipalName         = ($guest.userPrincipalName).ToLower()
-                    AssignedLicenses          = $guest.AssignedLicenses
-                    mail                      = ($guest.mail).ToLower()
-                    mailDomain                = ($guest.mail).ToLower() -replace '^.+@'
-                    DateLastLogin             = [datetime](Get-Date ($guest.signInActivity.lastSignInDateTime))
-                    DaysSinceLastLogin        = $DaysSinceLastLogin
-                    DateLastNonIntLogin       = if ($DaysSinceLastNonIntLogin -ne $null) { [datetime](Get-Date ($guest.signInActivity.lastNonInteractiveSignInDateTime)) } else { $null }
-                    DaysSinceLastNonIntLogin  = $DaysSinceLastNonIntLogin
-                }
+                $InactiveUsers += $UserObj
             }
-
-            if ($guest.signInActivity.lastSignInDateTime -eq $null -and $guest.signInActivity.lastNonInteractiveSignInDateTime -eq $null) {
-                $NeverLoggedIn += $guest
-
-                if ($guest.externalUserState -eq 'PendingAcceptance') {
-                    $NotAcceptedInvitation += $guest
+            if ($user.signInActivity.lastSignInDateTime -eq $null -and $user.signInActivity.lastNonInteractiveSignInDateTime -eq $null) {
+                $NeverSignedIn += $UserObj
+                if ($user.externalUserState -eq 'PendingAcceptance') {
+                    $NotAcceptedInvitation += $UserObj
                 }
             }
         }
@@ -218,19 +258,18 @@ $result.value | ForEach-Object {
 }
 $timer.Stop()
 Write-Log -Level 0 -Message  "Process Graph-results - Done in $($timer.Elapsed.TotalSeconds) seconds"
-
-Write-Log -Level 0 -Message  "[$($AllGuests.count)]`t  Guests: all guests"
+Write-Log -Level 0 -Message  "[$(($result.value).count)]`tTotal: Users found"
+Write-Log -Level 0 -Message  "[$($AllUsers.count)]`t  Guests: all guests"
 Write-Log -Level 0 -Message  "[$($DisabledGuests.count)]`t    Disabled: Guest users that are disabled"
 Write-Log -Level 0 -Message  "[$($EnabledGuests.count)]`t    Enabled: Guest users that are enabled"
-Write-Log -Level 0 -Message  "[$($InactivePass1.count)]`t    Inactive: Guests that have not logged in last $ThresholdDaysAgo+ days"
-Write-Log -Level 0 -Message  "[$($NeverLoggedIn.count)]`t    No logins: Guests that have not yet logged in"
+Write-Log -Level 0 -Message  "[$($InactiveUsers.count)]`t    Inactive: Guests that have not logged in last $ThresholdDaysAgo+ days"
+Write-Log -Level 0 -Message  "[$($NeverSignedIn.count)]`t    No logins: Guests that have not yet logged in"
 Write-Log -Level 0 -Message  "[$($NotAcceptedInvitation.count)]`t    Invited: Guests that have not accepted invitation to Entra ID"
 
-$TotalCount = $AllGuests.Count
+$TotalCount = $AllUsers.Count
 $DisabledCount = $DisabledGuests.Count
-$NeverLoggedInCount = $NeverLoggedIn.Count
-$NotAcceptecInvitationCount = $NotAcceptedInvitation.Count
-$InactiveCount = $InactivePass1.Count
+$NeverSignedInCount = $NeverSignedIn.Count
+$InactiveCount = $InactiveUsers.Count
 #Endregion ProcessGuests
 
 #region style
@@ -240,26 +279,31 @@ $InactiveCount = $InactivePass1.Count
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,220,220)
+$GaugeLabel = [System.Drawing.Color]::FromArgb(255,200,200,200)
 $WrapperBackgroundColor = [System.Drawing.Color]::FromArgb(255,245,245,245)
-$LabelFont = New-Object System.Drawing.Font('Calibri Light', '12')
-$NarrowFont = New-Object System.Drawing.Font('Calibri Light', '10', [System.Drawing.FontStyle]::Bold)
+
+$LabelFontH2 = New-Object System.Drawing.Font('Calibri Light', '12')
+$LabelFontH1 = New-Object System.Drawing.Font('Calibri Light', '14', [System.Drawing.FontStyle]::Bold)
 $ListIconFont = New-Object System.Drawing.Font("Wingdings", '20')
+
 $LabelColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
+$LabelColorEnter = [System.Drawing.Color]::FromArgb(255,252,133,77)
+$Yellow = [System.Drawing.Color]::FromArgb(255,215,200,0)
 
 $gaugelevel1 = [System.Drawing.Color]::FromArgb(255,107,201,104) # green
 $gaugelevel2 = [System.Drawing.Color]::FromArgb(255,254,209,54) # yellow
 $gaugelevel3 = [System.Drawing.Color]::FromArgb(255,252,133,77) # orange
 $gaugelevel4 = [System.Drawing.Color]::FromArgb(255,253,87,99) # red
 
-$StagesLabelYPossition = 30
+$Spacing = 15
 #endregion style
 
 #region Main form
 $Form = New-Object System.Windows.Forms.Form
-$Form.Text = 'InactiveWipe'
+$Form.Text = "InactiveWipe [$UserType mode]"
 $Form.SizeGripStyle = 'Hide'
 $Form.FormBorderStyle = 'Fixed3D'
-$Form.ClientSize = '1030,170'
+$Form.ClientSize = '500,300'
 $Form.Font = New-Object System.Drawing.Font("Calibri",10)
 $Form.BackColor = $BackgroundColor
 $Form.MaximizeBox = $False
@@ -272,80 +316,44 @@ $Form.Add_KeyDown({
 })
 #endregion Main form
 
-#Region Start
-$Selection = ''
-
-$StartLabel = New-Object System.Windows.Forms.Label
-$StartLabel.Location = New-Object Drawing.Point 15,$StagesLabelYPossition
-$StartLabel.Text = "Start ->"
-$StartLabel.Font = $NarrowFont
-$StartLabel.BackColor = $BackgroundColor
-$StartLabel.ForeColor = $LabelColor
-$StartLabel.ClientSize = '60,20'
-$Form.Controls.Add($StartLabel)
-
-$StartText = New-Object System.Windows.Forms.Label
-$StartText.Location = New-Object Drawing.Point 15,($StagesLabelYPossition + 20)
-$StartText.Text = '' #See Update-Text function
-$StartText.BackColor = $BackgroundColor
-$StartText.ForeColor = $LabelColor
-$StartText.ClientSize = '90,90'
-$Form.Controls.Add($StartText)
-#Endregion Start
-
-#region tile disabled-guests
+#region Disabled
 $disabledLabel = New-Object System.Windows.Forms.Label
-$disabledLabel.Location = New-Object Drawing.Point 115,15
+$disabledLabel.Location = New-Object Drawing.Point $Spacing,$Spacing
 $disabledLabel.Text = 'Disabled'
-$disabledLabel.Font = $LabelFont
+$disabledLabel.Font = $LabelFontH2
 $disabledLabel.BackColor = $WrapperBackgroundColor
 $disabledLabel.ForeColor = $LabelColor
-$disabledLabel.ClientSize = '145,20'
+$disabledLabel.ClientSize = '120,20'
 
 $disabledResultListLabel = New-Object System.Windows.Forms.Label
-$disabledResultListLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 170),($disabledLabel.Location.Y -2)
+$disabledResultListLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 117),($disabledLabel.Location.Y - 2)
 $disabledResultListLabel.Text = '2' #Using the Wingdings font, the number 2 represents a list-icon
 $disabledResultListLabel.Font = $ListIconFont
 $disabledResultListLabel.BackColor = $WrapperBackgroundColor
-$disabledResultListLabel.ForeColor = $BackgroundColor
+$disabledResultListLabel.ForeColor = $LabelColor
 $disabledResultListLabel.ClientSize = '25,25'
 $disabledResultListLabel.Add_MouseEnter({
-    $disabledResultListLabel.ForeColor = $LabelColor
+    $disabledResultListLabel.ForeColor = $LabelColorEnter
 })
 $disabledResultListLabel.Add_MouseLeave({
-    $disabledResultListLabel.ForeColor = $BackgroundColor
+    $disabledResultListLabel.ForeColor = $LabelColor
 })
 $disabledResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $DisabledGuests | Out-GridView -Title "Disabled guest users [$($DisabledGuests.count)]" -OutputMode Multiple
+    $Selection = $DisabledGuests | Out-GridView -Title "Disabled $($UserType.ToLower()) users [$($DisabledGuests.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
 $disabledInfoTextBox = New-Object System.Windows.Forms.RichTextBox
-$disabledInfoTextBox.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 45),($disabledLabel.Location.Y + 40)
+$disabledInfoTextBox.Location = New-Object Drawing.Point ($disabledLabel.Location.X),($disabledLabel.Location.Y + 30)
 $disabledInfoTextBox.BackColor = $WrapperBackgroundColor
-$disabledInfoTextBox.ClientSize = "140,75"
+$disabledInfoTextBox.ClientSize = "140,70"
 $disabledInfoTextBox.ReadOnly = $true
 $disabledInfoTextBox.BorderStyle = 0
 
-$disabledGauge = New-Object System.Windows.Forms.Label
-$disabledGauge.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 6),($disabledLabel.Location.Y + 31)
-$disabledGauge.ClientSize = "30,0"
-$disabledGauge.BackColor = [System.Drawing.Color]::FromArgb(255,100,200,255)
-
-$disabledBGGauge= New-Object System.Windows.Forms.Label
-$disabledBGGauge.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 6),($disabledLabel.Location.Y + 31)
-$disabledBGGauge.ClientSize = '30,100'
-$disabledBGGauge.BackColor = $BackgroundColor
-
-$disabledBorderGauge= New-Object System.Windows.Forms.Label
-$disabledBorderGauge.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 5),($disabledLabel.Location.Y + 30)
-$disabledBorderGauge.ClientSize = '32,102'
-$disabledBorderGauge.BackColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
-
 $disabledBackground = New-Object System.Windows.Forms.Label
 $disabledBackground.Location = New-Object Drawing.Point ($disabledLabel.Location.X - 5),($disabledLabel.Location.Y - 5)
-$disabledBackground.ClientSize = '200,150'
+$disabledBackground.ClientSize = '150,115'
 $disabledBackground.BackColor = $WrapperBackgroundColor
 
 $Form.Controls.Add($disabledLabel)
@@ -355,163 +363,95 @@ $Form.Controls.Add($disabledGauge)
 $Form.Controls.Add($disabledBGGauge)
 $Form.Controls.Add($disabledBorderGauge)
 $Form.Controls.Add($disabledBackground)
-#endregion tile disabled-guests
+#endregion Disabled
 
-#Region Narrow1
-$Narrow1Label = New-Object System.Windows.Forms.Label
-$Narrow1Label.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 210),$StagesLabelYPossition
-$Narrow1Label.Text = "Narrow ->"
-$Narrow1Label.Font = $NarrowFont
-$Narrow1Label.BackColor = $BackgroundColor
-$Narrow1Label.ForeColor = $LabelColor
-$Narrow1Label.ClientSize = '60,20'
-$Form.Controls.Add($Narrow1Label)
+#region NeverSignedIn
+$neverSignedInLabel = New-Object System.Windows.Forms.Label
+$neverSignedInLabel.Location = New-Object Drawing.Point ($disabledBackground.Width + ($Spacing * 2)),$Spacing
+$neverSignedInLabel.Text = 'Never signed in'
+$neverSignedInLabel.Font = $LabelFontH2
+$neverSignedInLabel.BackColor = $WrapperBackgroundColor
+$neverSignedInLabel.ForeColor = $LabelColor
+$neverSignedInLabel.ClientSize = '120,20'
 
-$Narrow1Text = New-Object System.Windows.Forms.Label
-$Narrow1Text.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 210),($StagesLabelYPossition + 20)
-$Narrow1Text.Text = '' #See Update-Text function
-$Narrow1Text.BackColor = $BackgroundColor
-$Narrow1Text.ForeColor = $LabelColor
-$Narrow1Text.ClientSize = '90,90'
-$Form.Controls.Add($Narrow1Text)
-#Endregion Narrow1
-
-#region tile neverLoggedIn
-$neverLoggedInLabel = New-Object System.Windows.Forms.Label
-$neverLoggedInLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 310),15
-$neverLoggedInLabel.Text = 'Never signed in'
-$neverLoggedInLabel.Font = $LabelFont
-$neverLoggedInLabel.BackColor = $WrapperBackgroundColor
-$neverLoggedInLabel.ForeColor = $LabelColor
-$neverLoggedInLabel.ClientSize = '145,20'
-
-$neverLoggedInResultListLabel = New-Object System.Windows.Forms.Label
-$neverLoggedInResultListLabel.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 170),($neverLoggedInLabel.Location.Y -2)
-$neverLoggedInResultListLabel.Text = '2' #Using the Wingdings font, the number 2 represents a list-icon
-$neverLoggedInResultListLabel.Font = $ListIconFont
-$neverLoggedInResultListLabel.BackColor = $WrapperBackgroundColor
-$neverLoggedInResultListLabel.ForeColor = $BackgroundColor
-$neverLoggedInResultListLabel.ClientSize = '25,25'
-$neverLoggedInResultListLabel.Add_MouseEnter({
-    $neverLoggedInResultListLabel.ForeColor = $LabelColor
+$neverSignedInResultListLabel = New-Object System.Windows.Forms.Label
+$neverSignedInResultListLabel.Location = New-Object Drawing.Point ($neverSignedInLabel.Location.X + 117),($neverSignedInLabel.Location.Y -2)
+$neverSignedInResultListLabel.Text = '2' #Using the Wingdings font, the number 2 represents a list-icon
+$neverSignedInResultListLabel.Font = $ListIconFont
+$neverSignedInResultListLabel.BackColor = $WrapperBackgroundColor
+$neverSignedInResultListLabel.ForeColor = $LabelColor
+$neverSignedInResultListLabel.ClientSize = '25,25'
+$neverSignedInResultListLabel.Add_MouseEnter({
+    $neverSignedInResultListLabel.ForeColor = $LabelColorEnter
 })
-$neverLoggedInResultListLabel.Add_MouseLeave({
-    $neverLoggedInResultListLabel.ForeColor = $BackgroundColor
+$neverSignedInResultListLabel.Add_MouseLeave({
+    $neverSignedInResultListLabel.ForeColor = $LabelColor
 })
-$neverLoggedInResultListLabel.add_click({
+$neverSignedInResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $NeverLoggedIn | Out-GridView -Title "Never logged in guest users [$($NeverLoggedIn.count)]" -OutputMode Multiple
+    $Selection = $NeverSignedIn | Out-GridView -Title "Never logged in $($UserType.ToLower()) users [$($NeverSignedIn.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
-$neverLoggedInInfoTextBox = New-Object System.Windows.Forms.RichTextBox
-$neverLoggedInInfoTextBox.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 45),($neverLoggedInLabel.Location.Y + 40)
-$neverLoggedInInfoTextBox.BackColor = $WrapperBackgroundColor
-$neverLoggedInInfoTextBox.ClientSize = "140,75"
-$neverLoggedInInfoTextBox.ReadOnly = $true
-$neverLoggedInInfoTextBox.BorderStyle = 0
+$neverSignedInInfoTextBox = New-Object System.Windows.Forms.RichTextBox
+$neverSignedInInfoTextBox.Location = New-Object Drawing.Point ($neverSignedInLabel.Location.X),($neverSignedInLabel.Location.Y + 30)
+$neverSignedInInfoTextBox.BackColor = $WrapperBackgroundColor
+$neverSignedInInfoTextBox.ClientSize = "140,75"
+$neverSignedInInfoTextBox.ReadOnly = $true
+$neverSignedInInfoTextBox.BorderStyle = 0
 
-$neverLoggedInGauge = New-Object System.Windows.Forms.Label
-$neverLoggedInGauge.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 6),($neverLoggedInLabel.Location.Y + 31)
-$neverLoggedInGauge.ClientSize = "30,0"
-$neverLoggedInGauge.BackColor = [System.Drawing.Color]::FromArgb(255,100,200,255)
+$neverSignedInBackground = New-Object System.Windows.Forms.Label
+$neverSignedInBackground.Location = New-Object Drawing.Point ($neverSignedInLabel.Location.X - 5),($neverSignedInLabel.Location.Y - 5)
+$neverSignedInBackground.ClientSize = '150,115'
+$neverSignedInBackground.BackColor = $WrapperBackgroundColor
 
-$neverLoggedInBGGauge= New-Object System.Windows.Forms.Label
-$neverLoggedInBGGauge.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 6),($neverLoggedInLabel.Location.Y + 31)
-$neverLoggedInBGGauge.ClientSize = '30,100'
-$neverLoggedInBGGauge.BackColor = $BackgroundColor
+$Form.Controls.Add($neverSignedInLabel)
+$Form.Controls.Add($neverSignedInResultListLabel)
+$Form.Controls.Add($neverSignedInInfoTextBox)
+$Form.Controls.Add($neverSignedInGauge)
+$Form.Controls.Add($neverSignedInBGGauge)
+$Form.Controls.Add($neverSignedInBorderGauge)
+$Form.Controls.Add($neverSignedInBackground)
+#endregion NeverSignedIn
 
-$neverLoggedInBorderGauge= New-Object System.Windows.Forms.Label
-$neverLoggedInBorderGauge.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 5),($neverLoggedInLabel.Location.Y + 30)
-$neverLoggedInBorderGauge.ClientSize = '32,102'
-$neverLoggedInBorderGauge.BackColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
-
-$neverLoggedInBackground = New-Object System.Windows.Forms.Label
-$neverLoggedInBackground.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X - 5),($neverLoggedInLabel.Location.Y - 5)
-$neverLoggedInBackground.ClientSize = '200,150'
-$neverLoggedInBackground.BackColor = $WrapperBackgroundColor
-
-$Form.Controls.Add($neverLoggedInLabel)
-$Form.Controls.Add($neverLoggedInResultListLabel)
-$Form.Controls.Add($neverLoggedInInfoTextBox)
-$Form.Controls.Add($neverLoggedInGauge)
-$Form.Controls.Add($neverLoggedInBGGauge)
-$Form.Controls.Add($neverLoggedInBorderGauge)
-$Form.Controls.Add($neverLoggedInBackground)
-#endregion tile neverLoggedIn
-
-#Region Narrow2
-$Narrow2Label = New-Object System.Windows.Forms.Label
-$Narrow2Label.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 210),$StagesLabelYPossition
-$Narrow2Label.Text = "Narrow ->"
-$Narrow2Label.Font = $NarrowFont
-$Narrow2Label.BackColor = $BackgroundColor
-$Narrow2Label.ForeColor = $LabelColor
-$Narrow2Label.ClientSize = '60,20'
-$Form.Controls.Add($Narrow2Label)
-
-$Narrow2Text = New-Object System.Windows.Forms.Label
-$Narrow2Text.Location = New-Object Drawing.Point ($neverLoggedInLabel.Location.X + 210),($StagesLabelYPossition + 20)
-$Narrow2Text.Text = '' #See Update-Text function
-$Narrow2Text.BackColor = $BackgroundColor
-$Narrow2Text.ForeColor = $LabelColor
-$Narrow2Text.ClientSize = '90,100'
-$Form.Controls.Add($Narrow2Text)
-#Endregion Narrow2
-
-#region tile inactive-guests
+#region Inactive
 $inactiveLabel = New-Object System.Windows.Forms.Label
-$inactiveLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 620),15
+$inactiveLabel.Location = New-Object Drawing.Point ($disabledBackground.Width + $neverSignedInBackground.Width  + ($Spacing * 3)),$Spacing
 $inactiveLabel.Text = 'Inactive'
-$inactiveLabel.Font = $LabelFont
+$inactiveLabel.Font = $LabelFontH2
 $inactiveLabel.BackColor = $WrapperBackgroundColor
 $inactiveLabel.ForeColor = $LabelColor
-$inactiveLabel.ClientSize = '145,20'
+$inactiveLabel.ClientSize = '120,20'
 
 $inactiveResultListLabel = New-Object System.Windows.Forms.Label
-$inactiveResultListLabel.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 170),($inactiveLabel.Location.Y -2)
+$inactiveResultListLabel.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 117),($inactiveLabel.Location.Y -2)
 $inactiveResultListLabel.Text = '2' #Using the Wingdings font, the number 2 represents a list-icon
 $inactiveResultListLabel.Font = $ListIconFont
 $inactiveResultListLabel.BackColor = $WrapperBackgroundColor
-$inactiveResultListLabel.ForeColor = $BackgroundColor
+$inactiveResultListLabel.ForeColor = $LabelColor
 $inactiveResultListLabel.ClientSize = '25,25'
 $inactiveResultListLabel.Add_MouseEnter({
-    $inactiveResultListLabel.ForeColor = $LabelColor
+    $inactiveResultListLabel.ForeColor = $LabelColorEnter
 })
 $inactiveResultListLabel.Add_MouseLeave({
-    $inactiveResultListLabel.ForeColor = $BackgroundColor
+    $inactiveResultListLabel.ForeColor = $LabelColor
 })
 $inactiveResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $InactivePass1 | Out-GridView -Title "Inactive guest users [$($InactivePass1.count)]" -OutputMode Multiple
+    $Selection = $InactiveUsers | Out-GridView -Title "Inactive $($UserType.ToLower()) users [$($InactiveUsers.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
 $inactiveInfoTextBox = New-Object System.Windows.Forms.RichTextBox
-$inactiveInfoTextBox.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 45),($inactiveLabel.Location.Y + 40)
+$inactiveInfoTextBox.Location = New-Object Drawing.Point ($inactiveLabel.Location.X),($inactiveLabel.Location.Y + 30)
 $inactiveInfoTextBox.BackColor = $WrapperBackgroundColor
-$inactiveInfoTextBox.ClientSize = "140,75"
+$inactiveInfoTextBox.ClientSize = "140,70"
 $inactiveInfoTextBox.ReadOnly = $true
 $inactiveInfoTextBox.BorderStyle = 0
 
-$inactiveGauge = New-Object System.Windows.Forms.Label
-$inactiveGauge.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 6),($inactiveLabel.Location.Y + 31)
-$inactiveGauge.ClientSize = "30,0"
-$inactiveGauge.BackColor = [System.Drawing.Color]::FromArgb(255,100,200,255)
-
-$inactiveBGGauge= New-Object System.Windows.Forms.Label
-$inactiveBGGauge.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 6),($inactiveLabel.Location.Y + 31)
-$inactiveBGGauge.ClientSize = '30,100'
-$inactiveBGGauge.BackColor = $BackgroundColor
-
-$inactiveBorderGauge= New-Object System.Windows.Forms.Label
-$inactiveBorderGauge.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 5),($inactiveLabel.Location.Y + 30)
-$inactiveBorderGauge.ClientSize = '32,102'
-$inactiveBorderGauge.BackColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
-
 $inactiveBackground = New-Object System.Windows.Forms.Label
 $inactiveBackground.Location = New-Object Drawing.Point ($inactiveLabel.Location.X - 5),($inactiveLabel.Location.Y - 5)
-$inactiveBackground.ClientSize = '200,150'
+$inactiveBackground.ClientSize = '150,115'
 $inactiveBackground.BackColor = $WrapperBackgroundColor
 
 $Form.Controls.Add($inactiveLabel)
@@ -521,26 +461,90 @@ $Form.Controls.Add($inactiveGauge)
 $Form.Controls.Add($inactiveBGGauge)
 $Form.Controls.Add($inactiveBorderGauge)
 $Form.Controls.Add($inactiveBackground)
-#endregion tile inactive-guests
+#endregion Inactive
 
-#Region Result
-$ResultLabel = New-Object System.Windows.Forms.Label
-$ResultLabel.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 210),$StagesLabelYPossition
-$ResultLabel.Text = "Result:"
-$ResultLabel.Font = $NarrowFont
-$ResultLabel.BackColor = $BackgroundColor
-$ResultLabel.ForeColor = $LabelColor
-$ResultLabel.ClientSize = '60,20'
-$Form.Controls.Add($ResultLabel)
+#Region Total
+$ResultsLabel = New-Object System.Windows.Forms.Label
+$ResultsLabel.Location = New-Object Drawing.Point $Spacing, ($disabledBackground.Height + ($Spacing * 2))
+$ResultsLabel.Text = 'Total'
+$ResultsLabel.Font = $LabelFontH1
+$ResultsLabel.BackColor = $WrapperBackgroundColor
+$ResultsLabel.ForeColor = $LabelColor
+$ResultsLabel.ClientSize = '120,20'
 
-$ResultText = New-Object System.Windows.Forms.Label
-$ResultText.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 210),($StagesLabelYPossition + 20)
+$ResultText = New-Object System.Windows.Forms.RichTextBox
+$ResultText.Location = New-Object Drawing.Point ($ResultsLabel.Location.X + 85),($ResultsLabel.Location.Y + 30)
 $ResultText.Text = '' #See Update-Text function
-$ResultText.BackColor = $BackgroundColor
-$ResultText.ForeColor = $LabelColor
-$ResultText.ClientSize = '90,90'
+$ResultText.BackColor = $WrapperBackgroundColor
+$ResultText.ClientSize = '135,80'
+$ResultText.ReadOnly = $true
+$ResultText.BorderStyle = 0
 $Form.Controls.Add($ResultText)
-#Endregion Result
+
+$ResultsGauge = New-Object System.Windows.Forms.Label
+$ResultsGauge.Location = New-Object Drawing.Point ($ResultsLabel.Location.X + 6),($ResultsLabel.Location.Y + 31)
+$ResultsGauge.ClientSize = "30,0"
+$ResultsGauge.BackColor = [System.Drawing.Color]::FromArgb(255,100,200,255)
+
+$ResultsBGGauge= New-Object System.Windows.Forms.Label
+$ResultsBGGauge.Location = New-Object Drawing.Point ($ResultsLabel.Location.X + 6),($ResultsLabel.Location.Y + 31)
+$ResultsBGGauge.ClientSize = '30,100'
+$ResultsBGGauge.BackColor = $BackgroundColor
+
+$ResultsBorderGauge= New-Object System.Windows.Forms.Label
+$ResultsBorderGauge.Location = New-Object Drawing.Point ($ResultsLabel.Location.X + 5),($ResultsLabel.Location.Y + 30)
+$ResultsBorderGauge.ClientSize = '32,102'
+$ResultsBorderGauge.BackColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
+
+$ResultsBackground = New-Object System.Windows.Forms.Label
+$ResultsBackground.Location = New-Object Drawing.Point ($Spacing - 5),($ResultsLabel.Location.Y - 5)
+$ResultsBackground.Width = (($Spacing / 2) + $disabledBackground.Width * 1.5)
+$ResultsBackground.Height = '150'
+$ResultsBackground.BackColor = $WrapperBackgroundColor
+
+$ResultsGaugeMax = New-Object System.Windows.Forms.Label
+$ResultsGaugeMax.Location = New-Object Drawing.Point ($ResultsBGGauge.Location.X + 32),($ResultsBGGauge.Location.Y)
+$ResultsGaugeMax.Text = '100%'
+$ResultsGaugeMax.BackColor = $WrapperBackgroundColor
+$ResultsGaugeMax.ForeColor = $GaugeLabel
+$ResultsGaugeMax.ClientSize = '40,20'
+$Form.Controls.Add($ResultsGaugeMax)
+
+$ResultsGaugeMin = New-Object System.Windows.Forms.Label
+$ResultsGaugeMin.Location = New-Object Drawing.Point ($ResultsBGGauge.Location.X + 32),($ResultsBGGauge.Location.Y + $ResultsBorderGauge.Height - 20)
+$ResultsGaugeMin.Text = '0%'
+$ResultsGaugeMin.BackColor = $WrapperBackgroundColor
+$ResultsGaugeMin.ForeColor = $GaugeLabel
+$ResultsGaugeMin.ClientSize = '30,20'
+$Form.Controls.Add($ResultsGaugeMin)
+
+$Form.Controls.Add($ResultsLabel)
+$Form.Controls.Add($ResultsResultListLabel)
+$Form.Controls.Add($ResultsInfoTextBox)
+$Form.Controls.Add($ResultsGauge)
+$Form.Controls.Add($ResultsBGGauge)
+$Form.Controls.Add($ResultsBorderGauge)
+$Form.Controls.Add($ResultsBackground)
+#endregion Total
+
+#Region Insights
+$InsightsInfoTextBox = New-Object System.Windows.Forms.RichTextBox
+$InsightsInfoTextBox.Location = New-Object Drawing.Point ($ResultsBackground.Width + ($Spacing * 2) + 5), ($disabledBackground.Height + ($Spacing * 2))
+$InsightsInfoTextBox.Text = '' #See Update-Text function
+$InsightsInfoTextBox.Width = 222
+$InsightsInfoTextBox.Height = 130
+$InsightsInfoTextBox.ReadOnly = $true
+$InsightsInfoTextBox.BorderStyle = 0
+$InsightsInfoTextBox.BackColor = $WrapperBackgroundColor
+$Form.Controls.Add($InsightsInfoTextBox)
+
+$InsightsBackground = New-Object System.Windows.Forms.Label
+$InsightsBackground.Location = New-Object Drawing.Point ($ResultsBackground.Width + ($Spacing * 1.5) + 3), $ResultsBackground.Location.Y
+$InsightsBackground.Width = (($Spacing / 2) + $disabledBackground.Width * 1.5)
+$InsightsBackground.Height = $ResultsBackground.Height
+$InsightsBackground.BackColor = $WrapperBackgroundColor
+$Form.Controls.Add($InsightsBackground)
+#Endregion Insights
 
 #region show GUI
 $Form.Add_Shown( {
