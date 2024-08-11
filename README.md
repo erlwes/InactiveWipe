@@ -8,7 +8,8 @@ The script will identify ...
 * Guests that never logged in and/or did not accept the invitation
 * Guests that have no logins for the last 180 days (interactive or noninteractive)
 
-![InactiveWipe](https://github.com/user-attachments/assets/58724cce-7cfe-4d79-afbf-b907687381d3)
+![image](https://github.com/user-attachments/assets/4e4927c0-b982-48ab-98ee-341caa86e050)
+
 
 
 ### 🟡 Prerequisites
