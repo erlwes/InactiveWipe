@@ -151,7 +151,10 @@ try {
     Remove-Variable -Name tenantId, appId, appSecret, restbody -ErrorAction SilentlyContinue
 }
 catch {
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: '$url' $($_.Exeption.Message)"
+    Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: URL: '$url'"
+    Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: Exception: $($_.Exception.Message)"
+    Write-Log -Level 2 -Message "Closing script - can not continue without auth"
+    Throw
 }
 #endregion GraphAuth
 
@@ -180,13 +183,16 @@ try {
             $i ++
         }
         catch {
-            Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exeption.Message)"
+            Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exception.Message)"
         }
     }
     Remove-Variable -Name token -ErrorAction SilentlyContinue
 }
-catch {
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exeption.Message)"
+catch {    
+    Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: URL: '$url'"
+    Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: Exception: $($_.Exception.Message)"
+    Write-Log -Level 2 -Message "Closing script - can not continue without graph query results"    
+    Throw
 }
 #endregion GraphQuery
 
