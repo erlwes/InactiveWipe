@@ -23,7 +23,7 @@ Errors and some info is outputed to console when running.
 
 
 ### 🟡 Prerequisites
-* A registered app with the `User Read All` Graph permission
+* A registered app with the `User Read All` and `AuditLog.Read.All` Graph permissions
 See this [step-by-step guide](https://github.com/erlwes/InactiveWipe/blob/main/AppRegistration.md)
 
 
