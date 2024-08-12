@@ -19,7 +19,7 @@
 4. Under Microsoft APIs, select Microsoft Graph.
 5. Choose Application permissions (not Delegated permissions).
 6. Search for and select the following permissions:
-7. User.Read.All: Read all users' full profiles.
+7. `User.Read.All: Read all users` and `AuditLog.Read.All` full profiles.
 8. After selecting the permissions, click on Add permissions.
 9. Back on the API permissions page, click the Grant admin consent for {Your Tenant Name} button. This will grant the necessary permissions across the tenant. Confirm by clicking Yes in the prompt.
 
