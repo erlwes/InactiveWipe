@@ -26,19 +26,21 @@ Errors and some info is outputed to console when running.
 * A registered app with the `User Read All` and `AuditLog.Read.All` Graph permissions
 See this [step-by-step guide](https://github.com/erlwes/InactiveWipe/blob/main/AppRegistration.md)
 
+### 🟡 Install
+`Install-Script -Name InactiveWipe`
 
 ### 🟡 Usage
 Running the script
 ```PowerShell
-.\InactiveWipe.ps1 -tenantId <your-tenant-id> -appId <your-app-id> -appSecret <your-app-secret>
+.\InactiveWipe.ps1 -TenantId <your-tenant-id> -AppId <your-app-id> -AppSecret <your-app-secret>
 ```
 
 Parameter | Description
 --- | ---
-tenantId (mandatory) | Your Entra ID tenant ID 'string'
-appId (mandatory) | The application ID for your registered application in Azure AD 'string'
-appSecret (mandatory) | The client secret for your registered application
-thresholdDaysAgo | Number of days without activity for guests to be consideres inactive. Default is 180 days 'int'
+TenantId (mandatory) | Your Entra ID tenant ID 'string'
+AppId (mandatory) | The application ID for your registered application in Azure AD 'string'
+AppSecret (mandatory) | The client secret for your registered application
+ThresholdDaysAgo | Number of days without activity for guests to be consideres inactive. Default is 180 days 'int'
 
 
 ### 🟡 Considerations
