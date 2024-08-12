@@ -1,18 +1,60 @@
+<#
+.SYNOPSIS
+    A graphical interface script to help stay in control of guest access in Entra ID. The tool helps identify disabled, inactive and never-used guest users.
+
+.DESCRIPTION
+    The script is designed to authenticate to Microsoft Graph API using the provided tenant ID, application ID, and secret. It retrieves all user accounts and analyzes their activity, categorizing them based on the last login date, disabled status, and invitation acceptance.
+
+    The script requires the 'User Read All' and 'AuditLog.Read.All' Microsoft Graph permissions.
+    Guide here: https://github.com/erlwes/InactiveWipe/blob/main/AppRegistration.md
+
+.PARAMETER TenantId
+    Specifies the Tenant ID for authentication against Microsoft Graph API. Must be a valid GUID.
+
+.PARAMETER AppId
+    Specifies the Application ID for authentication against Microsoft Graph API. Must be a valid GUID.
+
+.PARAMETER AppSecret
+    Specifies the Application Secret for authentication against Microsoft Graph API.
+
+.PARAMETER ThresholdDaysAgo
+    Optional parameter to define the inactivity threshold in days. Defaults to 180 days.
+
+.PARAMETER memberMode
+Optional switch parameter to toggle between processing guest or member accounts. If not specified, the script defaults to processing guest accounts. This parameter is experimental.
+
+.EXAMPLE
+    .\InactiveWipe.ps1 -TenantId <your-tenant-id> -AppId <your-app-id> -AppSecret <your-app-secret> -ThresholdDaysAgo 90
+    
+    This example retrieves all guest user accounts that have been inactive for the last 90 days and outputs the analysis results.
+
+.OUTPUTS
+    None
+
+.NOTES
+    Author: Erlend Westervik
+    Version: 1.0.1
+    Date: 2024-08-12    
+
+.LINK
+    https://github.com/erlwes/InactiveWipe
+#>
+
 Param (
     [Parameter(Mandatory = $true)][ValidateScript({$_  -match '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'}, ErrorMessage = 'Please enter a valid tenant id.')]
-    [string]$tenantId,
+    [string]$TenantId,
 
     [Parameter(Mandatory = $true)][ValidateScript({$_  -match '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'}, ErrorMessage = 'Please enter a valid application id.')]
-    [string]$appId,
+    [string]$AppId,
 
     [Parameter(Mandatory = $true)]
-    [string]$appSecret,
+    [string]$AppSecret,
 
     [Parameter(Mandatory = $false)]
     [int]$ThresholdDaysAgo = 180,
 
     [Parameter(Mandatory = $false)]
-    [switch]$memberMode #EXPERIMENTAL!
+    [switch]$MemberMode #EXPERIMENTAL!
 
 )
 '';''
