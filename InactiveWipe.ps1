@@ -1,3 +1,22 @@
+<#PSScriptInfo
+    .VERSION 1.0.2
+    .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
+    .AUTHOR Erlend Westervik
+    .COMPANYNAME
+    .COPYRIGHT
+    .TAGS Entra, Azure, PowerShell, GraphAPI, Automation, User Management, EntraID, Guest, Guests, User, Users
+    .LICENSEURI
+    .PROJECTURI https://github.com/erlwes/InactiveWipe
+    .ICONURI
+    .EXTERNALMODULEDEPENDENCIES 
+    .REQUIREDSCRIPTS
+    .EXTERNALSCRIPTDEPENDENCIES
+    .RELEASENOTES
+        Version: 1.0.0 - Original published version
+        Version: 1.0.1 - Fixed so that errormessage for Graph-requests displayed correctly
+        Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery
+    .PRIVATEDATA
+#>
 <#
 .SYNOPSIS
     A graphical interface script to help stay in control of guest access in Entra ID. The tool helps identify disabled, inactive and never-used guest users.
@@ -27,17 +46,6 @@ Optional switch parameter to toggle between processing guest or member accounts.
     .\InactiveWipe.ps1 -TenantId <your-tenant-id> -AppId <your-app-id> -AppSecret <your-app-secret> -ThresholdDaysAgo 90
     
     This example retrieves all guest user accounts that have been inactive for the last 90 days and outputs the analysis results.
-
-.OUTPUTS
-    None
-
-.NOTES
-    Author: Erlend Westervik
-    Version: 1.0.1
-    Date: 2024-08-12    
-
-.LINK
-    https://github.com/erlwes/InactiveWipe
 #>
 
 Param (
