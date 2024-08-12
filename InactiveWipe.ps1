@@ -1,4 +1,5 @@
 <#PSScriptInfo
+
     .VERSION 1.0.2
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
@@ -16,7 +17,9 @@
         Version: 1.0.1 - Fixed so that errormessage for Graph-requests displayed correctly
         Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery
     .PRIVATEDATA
+    
 #>
+
 <#
 .SYNOPSIS
     A graphical interface script to help stay in control of guest access in Entra ID. The tool helps identify disabled, inactive and never-used guest users.
