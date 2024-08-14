@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.0.2
+    .VERSION 1.0.5
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -15,9 +15,8 @@
     .RELEASENOTES
         Version: 1.0.0 - Original published version
         Version: 1.0.1 - Fixed so that errormessage for Graph-requests displayed correctly
-        Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery
-    .PRIVATEDATA
-    
+        Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery      
+        Version: 1.0.5 - Made the script usable in PowerShell 5.1. Some encoding was unsupported, and also errormessage was not supported on parameter validatescript
 #>
 
 <#
@@ -52,10 +51,10 @@ Optional switch parameter to toggle between processing guest or member accounts.
 #>
 
 Param (
-    [Parameter(Mandatory = $true)][ValidateScript({$_  -match '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'}, ErrorMessage = 'Please enter a valid tenant id.')]
+    [Parameter(Mandatory = $true)][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
     [string]$TenantId,
 
-    [Parameter(Mandatory = $true)][ValidateScript({$_  -match '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'}, ErrorMessage = 'Please enter a valid application id.')]
+    [Parameter(Mandatory = $true)][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
     [string]$AppId,
 
     [Parameter(Mandatory = $true)]
@@ -69,13 +68,17 @@ Param (
 
 )
 '';''
-'██╗███╗░░██╗░█████╗░░█████╗░████████╗██╗██╗░░░██╗███████╗░██╗░░░░░░░██╗██╗██████╗░███████╗'
-'██║████╗░██║██╔══██╗██╔══██╗╚══██╔══╝██║██║░░░██║██╔════╝░██║░░██╗░░██║██║██╔══██╗██╔════╝'
-'██║██╔██╗██║███████║██║░░╚═╝░░░██║░░░██║╚██╗░██╔╝█████╗░░░╚██╗████╗██╔╝██║██████╔╝█████╗░░'
-'██║██║╚████║██╔══██║██║░░██╗░░░██║░░░██║░╚████╔╝░██╔══╝░░░░████╔═████║░██║██╔═══╝░██╔══╝░░'
-'██║██║░╚███║██║░░██║╚█████╔╝░░░██║░░░██║░░╚██╔╝░░███████╗░░╚██╔╝░╚██╔╝░██║██║░░░░░███████╗'
-'╚═╝╚═╝░░╚══╝╚═╝░░╚═╝░╚════╝░░░░╚═╝░░░╚═╝░░░╚═╝░░░╚══════╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░░░░╚══════╝'
-''
+$banner = @'
+██╗███╗░░██╗░█████╗░░█████╗░████████╗██╗██╗░░░██╗███████╗░██╗░░░░░░░██╗██╗██████╗░███████╗
+██║████╗░██║██╔══██╗██╔══██╗╚══██╔══╝██║██║░░░██║██╔════╝░██║░░██╗░░██║██║██╔══██╗██╔════╝
+██║██╔██╗██║███████║██║░░╚═╝░░░██║░░░██║╚██╗░██╔╝█████╗░░░╚██╗████╗██╔╝██║██████╔╝█████╗░░
+██║██║╚████║██╔══██║██║░░██╗░░░██║░░░██║░╚████╔╝░██╔══╝░░░░████╔═████║░██║██╔═══╝░██╔══╝░░
+██║██║░╚███║██║░░██║╚█████╔╝░░░██║░░░██║░░╚██╔╝░░███████╗░░╚██╔╝░╚██╔╝░██║██║░░░░░███████╗
+╚═╝╚═╝░░╚══╝╚═╝░░╚═╝░╚════╝░░░░╚═╝░░░╚═╝░░░╚═╝░░░╚══════╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░░░░╚══════╝
+'@
+if (($Host.Version.Major) -gt 5) {    
+    Write-Host $banner
+}
 
 if($memberMode) {
     $UserType = 'Member'    
@@ -173,10 +176,10 @@ Function Update-Text {
     $InsightsInfoTextBox.Clear()
     $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
     $InsightsInfoTextBox.AppendText("Insights ")
-    
-    $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font('Calibri Light', '12', [System.Drawing.FontStyle]::Bold))
+    New-Object System.Drawing.Font("Wingdings", '20')
+    $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Wingdings", '20'))
     $InsightsInfoTextBox.SelectionColor = $Yellow
-    $InsightsInfoTextBox.AppendText("💡")
+    $InsightsInfoTextBox.AppendText("R")
     $InsightsInfoTextBox.SelectionColor = $LabelColor
 
     $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
@@ -361,7 +364,7 @@ $WrapperBackgroundColor = [System.Drawing.Color]::FromArgb(255,245,245,245)
 
 $LabelFontH2 = New-Object System.Drawing.Font('Calibri Light', '12')
 $LabelFontH1 = New-Object System.Drawing.Font('Calibri Light', '14', [System.Drawing.FontStyle]::Bold)
-$ListIconFont = New-Object System.Drawing.Font("Wingdings", '20')
+$ListIconFont = New-Object System.Drawing.Font("Wingdings", '20') #N For eye 2 for list
 
 $LabelColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
 $LabelColorEnter = [System.Drawing.Color]::FromArgb(255,252,133,77)
