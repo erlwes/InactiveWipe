@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.0.5
+    .VERSION 1.0.6
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -17,6 +17,7 @@
         Version: 1.0.1 - Fixed so that errormessage for Graph-requests displayed correctly
         Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery      
         Version: 1.0.5 - Made the script usable in PowerShell 5.1. Some encoding was unsupported, and also errormessage was not supported on parameter validatescript
+        Version: 1.0.6 - Fixed some errors that where thrown when users had no emailaddress. Issue #4.
 #>
 
 <#
@@ -269,9 +270,10 @@ $ThresholdDaysAgo = [int]$ThresholdDaysAgo
 
 $AllResults | ForEach-Object {
     $user = $_
+
     if ($user.UserType -eq $UserType) {
         
-        Clear-Variable DaysSinceLastLogin, DaysSinceLastNonIntLogin, DateLastLogin, UserObj -ErrorAction SilentlyContinue
+        Clear-Variable DaysSinceLastLogin, DateLastNonIntLogin, DaysSinceLastNonIntLogin, DateLastLogin, UserObj -ErrorAction SilentlyContinue
         
         # Calculate days since last login
         if ($user.signInActivity.lastSignInDateTime) {
@@ -279,6 +281,14 @@ $AllResults | ForEach-Object {
         }
         else {
             $DaysSinceLastLogin = $null
+        }
+
+        # Date last non-int login
+        if ($user.signInActivity.lastNonInteractiveSignInDateTime) {
+            $DateLastNonIntLogin = [datetime](Get-Date ($user.signInActivity.lastNonInteractiveSignInDateTime))            
+        }
+        else {
+            $DateLastNonIntLogin = $null
         }
 
         # Calculate days since last non-int login
@@ -297,22 +307,39 @@ $AllResults | ForEach-Object {
             $DateLastLogin = $null
         }
 
+        # createdDateTime
+        if ($user.createdDateTime) {
+            $createdDateTime = [datetime](Get-Date ($user.createdDateTime))
+        }
+        else {
+            $createdDateTime = $null
+        }
+
+        # Mail
+        if ($user.mail) {
+            $mail       = ($user.mail).ToLower()
+            $mailDomain = ($user.mail).ToLower() -replace '^.+@'
+        }
+        else {
+            $mail = '';$mailDomain=''
+        }
+
         $UserObj = [pscustomobject]@{
             UserType                  = $user.UserType
             accountEnabled            = $user.accountEnabled
             creationType              = $user.creationType
             externalUserState         = $user.externalUserState
-            createdDateTime           = [datetime](Get-Date ($user.createdDateTime))
+            createdDateTime           = $createdDateTime
             companyName               = $user.companyName
             displayName               = $user.displayName
             jobTitle                  = $user.jobTitle
             userPrincipalName         = ($user.userPrincipalName).ToLower()
-            AssignedLicenses          = $user.AssignedLicenses
-            mail                      = ($user.mail).ToLower()
-            mailDomain                = ($user.mail).ToLower() -replace '^.+@'
+            AssignedLicenses          = $user.AssignedLicenses.skuId
+            mail                      = $mail
+            mailDomain                = $mailDomain
             DateLastLogin             = $DateLastLogin
             DaysSinceLastLogin        = $DaysSinceLastLogin
-            DateLastNonIntLogin       = if ($DaysSinceLastNonIntLogin -ne $null) { [datetime](Get-Date ($user.signInActivity.lastNonInteractiveSignInDateTime)) } else { $null }
+            DateLastNonIntLogin       = $DateLastNonIntLogin
             DaysSinceLastNonIntLogin  = $DaysSinceLastNonIntLogin
         }
 
@@ -334,7 +361,7 @@ $AllResults | ForEach-Object {
                 }
             }
         }
-    }    
+    }
 }
 $timer.Stop()
 Write-Log -Level 0 -Message  "Process Graph-results - Done in $($timer.Elapsed.TotalSeconds) seconds"
