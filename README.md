@@ -9,9 +9,11 @@ A graphical interface displays the results.
 ![image](https://github.com/user-attachments/assets/571e31c8-2f4a-497e-940f-187ff52d1d2f)
 
 
-### 🟡 List view
-The results can be inspected by clicking the "list"-icons in GUI. Select all or multiple users.
-When clicking ok, the users UPN is copied to clipboard for bulke delete/disable operations. The script is read-only and will **not** disable or delete any users.
+### 🟡 View results or save to CSV
+The "save"-icon lets you save results to CSV (for bulk-operations in Entra ID?)
+To inspect the results, click the "list"-icons in GUI. If you have a selection when clicking "OK", the users UPN is copied to clipboard for bulk delete/disable operations.
+
+The script is read-only and will **not** disable or delete any users.
 
 ![image](https://github.com/user-attachments/assets/644e3577-ed85-41bf-9bcc-65a333b23968)
 
