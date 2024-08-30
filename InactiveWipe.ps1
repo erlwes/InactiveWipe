@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.0.7
+    .VERSION 1.0.8
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -18,7 +18,7 @@
         Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery      
         Version: 1.0.5 - Made the script usable in PowerShell 5.1. Some encoding was unsupported, and also errormessage was not supported on parameter validatescript
         Version: 1.0.6 - Fixed some errors that where thrown when users had no emailaddress. Issue #4.
-        Version: 1.0.7 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
+        Version: 1.0.8 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
 
 #>
 
@@ -272,7 +272,7 @@ Function Out-CSVFile {
                 elseif ($x -eq 'All properties') {
                     $CSVExport | Export-Csv -Delimiter ';' -Encoding utf8 -Path $SaveFileDialog.FileName -Force -Confirm:$false
                 }
-                Write-Log -Level 1 -Message "Export-Csv: File '$($SaveFileDialog.FileName)' saved. $($Script:InactiveUsers.count) entries"
+                Write-Log -Level 1 -Message "Export-Csv: File '$($SaveFileDialog.FileName)' saved. $($Script:CSVExport.count) entries"
             }
             catch {
                 Write-Log -Level 3 -Message "Export-Csv: Failed to save file '$($SaveFileDialog.FileName)' $($_.Exception.Message)"
