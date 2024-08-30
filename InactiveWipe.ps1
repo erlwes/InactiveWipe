@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.0.6
+    .VERSION 1.0.7
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -18,6 +18,8 @@
         Version: 1.0.2 - Added script-metadata and PSScriptInfo, for publishing to PSGallery      
         Version: 1.0.5 - Made the script usable in PowerShell 5.1. Some encoding was unsupported, and also errormessage was not supported on parameter validatescript
         Version: 1.0.6 - Fixed some errors that where thrown when users had no emailaddress. Issue #4.
+        Version: 1.0.7 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
+
 #>
 
 <#
@@ -188,6 +190,95 @@ Function Update-Text {
         $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($result.value).count) users are $UserPlural (~$((($($TotalCount / ($result.value).count)) * 100) -replace "\..+$")%)")
         $InsightsInfoTextBox.AppendText("`n`nGuests are distributed across $(($EmailDomains | Select-Object -Unique).count) unique email domains")
     }
+    else {
+        $InsightsInfoTextBox.AppendText("`n`n$($Script:Licensed.count) users that could be removed, are assigned licenses")
+    }
+}
+
+Function Out-CSVFile {
+    Param (
+        [Parameter(Mandatory = $true)]
+        [String]$Title,
+
+        [Parameter(Mandatory = $true)][ValidateSet('Disabled', 'Inactive','NeverSignedIn')]
+        [string]$Type
+    )
+    
+    Clear-Variable CSVExport -ErrorAction SilentlyContinue
+    if ($Type -eq 'NeverSignedIn') {$CSVExport = $Script:NeverSignedIn}
+    elseif ($Type -eq 'Disabled')  {$CSVExport = $Script:DisabledGuests}
+    elseif ($Type -eq 'Inactive')  {$CSVExport = $Script:InactiveUsers}
+
+    $ChoiceForm = New-Object System.Windows.Forms.Form
+    $ChoiceForm.Text = $Title
+    $ChoiceForm.SizeGripStyle = 'Hide'
+    $ChoiceForm.FormBorderStyle = 'Fixed3D'
+    $ChoiceForm.MaximizeBox = $False
+    $ChoiceForm.Size = New-Object System.Drawing.Size(370,160)
+    $ChoiceForm.StartPosition = 'CenterScreen'
+
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Location = New-Object System.Drawing.Point(10,90)
+    $okButton.Size = New-Object System.Drawing.Size(75,23)
+    $okButton.Text = 'Ok'
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $ChoiceForm.AcceptButton = $okButton
+    $ChoiceForm.Controls.Add($okButton)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Location = New-Object System.Drawing.Point(95,90)
+    $cancelButton.Size = New-Object System.Drawing.Size(75,23)
+    $cancelButton.Text = 'Cancel'
+    $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $ChoiceForm.CancelButton = $cancelButton
+    $ChoiceForm.Controls.Add($cancelButton)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10,10)
+    $label.Size = New-Object System.Drawing.Size(200,20)
+    $label.Text = 'Select properties to include:'
+    $ChoiceForm.Controls.Add($label)
+
+    $listBox = New-Object System.Windows.Forms.ListBox
+    $listBox.Location = New-Object System.Drawing.Point(10,30)
+    $listBox.Size = New-Object System.Drawing.Size(335,20)    
+    [void] $listBox.Items.Add("UserPrincipalName")
+    [void] $listBox.Items.Add('All properties')
+    $listBox.Height = 50
+    $ChoiceForm.Controls.Add($listBox)
+
+
+    $ChoiceForm.Topmost = $true
+    $result = $ChoiceForm.ShowDialog()
+
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        $x = $listBox.SelectedItem
+
+        $SaveFileDialog = New-Object -TypeName System.Windows.Forms.SaveFileDialog
+        $SaveFileDialog.InitialDirectory = [Environment]::GetFolderPath("Desktop")
+        $SaveFileDialog.Filter = "CSV-file|*.csv"
+        $SaveFileDialog.OverwritePrompt = $true
+        $SaveFileDialog.Title = 'Save CSV-file'
+        $SaveFileDialog.DefaultExt = '.csv'
+        $SaveFileDialog.FileName = "$UserType-$Type-list.csv"
+        $SaveFileDialog.AddExtension = $true
+        $Result = $SaveFileDialog.ShowDialog()
+
+        if ($Result -eq 'OK') {
+            try {
+                if ($x -eq 'UserPrincipalName') {
+                    $CSVExport | Select-Object userPrincipalName | Export-Csv -Delimiter ';' -Encoding utf8 -Path $SaveFileDialog.FileName -Force -Confirm:$false
+                }
+                elseif ($x -eq 'All properties') {
+                    $CSVExport | Export-Csv -Delimiter ';' -Encoding utf8 -Path $SaveFileDialog.FileName -Force -Confirm:$false
+                }
+                Write-Log -Level 1 -Message "Export-Csv: File '$($SaveFileDialog.FileName)' saved. $($Script:InactiveUsers.count) entries"
+            }
+            catch {
+                Write-Log -Level 3 -Message "Export-Csv: Failed to save file '$($SaveFileDialog.FileName)' $($_.Exception.Message)"
+            }
+        }
+    }
 }
 #Endregion Functions
 
@@ -260,10 +351,11 @@ catch {
 Write-Log -Level 0 -Message  "Process Graph-results - Start"
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
 $AllUsers = @()
-$DisabledGuests = @()
 $EnabledGuests = @()
-$InactiveUsers = @()
-$NeverSignedIn = @()
+$Script:DisabledGuests = @()
+$Script:InactiveUsers = @()
+$Script:NeverSignedIn = @()
+$Script:Licensed = @()
 $NotAcceptedInvitation = @()
 $EmailDomains = @()
 $ThresholdDaysAgo = [int]$ThresholdDaysAgo
@@ -342,23 +434,25 @@ $AllResults | ForEach-Object {
             DateLastNonIntLogin       = $DateLastNonIntLogin
             DaysSinceLastNonIntLogin  = $DaysSinceLastNonIntLogin
         }
-
+        
         $EmailDomains += $UserObj.mailDomain
 
-        $AllUsers += $UserObj        
+        $AllUsers += $UserObj     
         if ($user.accountEnabled -eq $false) {
-            $DisabledGuests += $UserObj
+            $Script:DisabledGuests += $UserObj
+            if ($user.AssignedLicenses) {$Script:Licensed += $UserObj}
         }
         else {
             $EnabledGuests += $UserObj
             if ($DaysSinceLastLogin -ge $ThresholdDaysAgo -and ($DaysSinceLastNonIntLogin -eq $null -or $DaysSinceLastNonIntLogin -ge $ThresholdDaysAgo)) {
-                $InactiveUsers += $UserObj
+                $Script:InactiveUsers += $UserObj
+                if ($user.AssignedLicenses) {$Script:Licensed += $UserObj}
+
             }
             if ($user.signInActivity.lastSignInDateTime -eq $null -and $user.signInActivity.lastNonInteractiveSignInDateTime -eq $null) {
-                $NeverSignedIn += $UserObj
-                if ($user.externalUserState -eq 'PendingAcceptance') {
-                    $NotAcceptedInvitation += $UserObj
-                }
+                $Script:NeverSignedIn += $UserObj
+                if ($user.AssignedLicenses) {$Script:Licensed += $UserObj}
+                if ($user.externalUserState -eq 'PendingAcceptance') {$NotAcceptedInvitation += $UserObj}
             }
         }
     }
@@ -367,16 +461,16 @@ $timer.Stop()
 Write-Log -Level 0 -Message  "Process Graph-results - Done in $($timer.Elapsed.TotalSeconds) seconds"
 Write-Log -Level 0 -Message  "[$($AllResults.count)]`tTotal: Users found"
 Write-Log -Level 0 -Message  "[$($AllUsers.count)]`t  Guests: all guests"
-Write-Log -Level 0 -Message  "[$($DisabledGuests.count)]`t    Disabled: Guest users that are disabled"
+Write-Log -Level 0 -Message  "[$($Script:DisabledGuests.count)]`t    Disabled: Guest users that are disabled"
 Write-Log -Level 0 -Message  "[$($EnabledGuests.count)]`t    Enabled: Guest users that are enabled"
-Write-Log -Level 0 -Message  "[$($InactiveUsers.count)]`t    Inactive: Guests that have not logged in last $ThresholdDaysAgo+ days"
-Write-Log -Level 0 -Message  "[$($NeverSignedIn.count)]`t    No logins: Guests that have not yet logged in"
+Write-Log -Level 0 -Message  "[$($Script:InactiveUsers.count)]`t    Inactive: Guests that have not logged in last $ThresholdDaysAgo+ days"
+Write-Log -Level 0 -Message  "[$($Script:NeverSignedIn.count)]`t    No logins: Guests that have not yet logged in"
 Write-Log -Level 0 -Message  "[$($NotAcceptedInvitation.count)]`t    Invited: Guests that have not accepted invitation to Entra ID"
 
 $TotalCount = $AllUsers.Count
-$DisabledCount = $DisabledGuests.Count
-$NeverSignedInCount = $NeverSignedIn.Count
-$InactiveCount = $InactiveUsers.Count
+$DisabledCount = $Script:DisabledGuests.Count
+$NeverSignedInCount = $Script:NeverSignedIn.Count
+$InactiveCount = $Script:InactiveUsers.Count
 #Endregion ProcessGuests
 
 #region style
@@ -391,7 +485,7 @@ $WrapperBackgroundColor = [System.Drawing.Color]::FromArgb(255,245,245,245)
 
 $LabelFontH2 = New-Object System.Drawing.Font('Calibri Light', '12')
 $LabelFontH1 = New-Object System.Drawing.Font('Calibri Light', '14', [System.Drawing.FontStyle]::Bold)
-$ListIconFont = New-Object System.Drawing.Font("Wingdings", '20') #N For eye 2 for list
+$ListIconFont = New-Object System.Drawing.Font("Wingdings", '18') #N For eye 2 for list
 
 $LabelColor = [System.Drawing.Color]::FromArgb(255,50,50,50)
 $LabelColorEnter = [System.Drawing.Color]::FromArgb(255,252,133,77)
@@ -430,7 +524,24 @@ $disabledLabel.Text = 'Disabled'
 $disabledLabel.Font = $LabelFontH2
 $disabledLabel.BackColor = $WrapperBackgroundColor
 $disabledLabel.ForeColor = $LabelColor
-$disabledLabel.ClientSize = '120,20'
+$disabledLabel.ClientSize = '95,20'
+
+$disabledResultSaveLabel = New-Object System.Windows.Forms.Label
+$disabledResultSaveLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 93),($disabledLabel.Location.Y -2)
+$disabledResultSaveLabel.Text = '<' #Using the Wingdings font, the number 2 represents a list-icon
+$disabledResultSaveLabel.Font = $ListIconFont
+$disabledResultSaveLabel.BackColor = $WrapperBackgroundColor
+$disabledResultSaveLabel.ForeColor = $LabelColor
+$disabledResultSaveLabel.ClientSize = '25,25'
+$disabledResultSaveLabel.Add_MouseEnter({
+    $disabledResultSaveLabel.ForeColor = $LabelColorEnter
+})
+$disabledResultSaveLabel.Add_MouseLeave({
+    $disabledResultSaveLabel.ForeColor = $LabelColor
+})
+$disabledResultSaveLabel.add_click({
+    Out-CSVFile -Title "Disabled $($UserType.ToLower()) users [$($Script:DisabledGuests.count)]" -Type 'Disabled'
+})
 
 $disabledResultListLabel = New-Object System.Windows.Forms.Label
 $disabledResultListLabel.Location = New-Object Drawing.Point ($disabledLabel.Location.X + 117),($disabledLabel.Location.Y - 2)
@@ -447,7 +558,7 @@ $disabledResultListLabel.Add_MouseLeave({
 })
 $disabledResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $DisabledGuests | Out-GridView -Title "Disabled $($UserType.ToLower()) users [$($DisabledGuests.count)]" -OutputMode Multiple
+    $Selection = $Script:DisabledGuests | Out-GridView -Title "Disabled $($UserType.ToLower()) users [$($Script:DisabledGuests.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
@@ -464,6 +575,7 @@ $disabledBackground.ClientSize = '150,115'
 $disabledBackground.BackColor = $WrapperBackgroundColor
 
 $Form.Controls.Add($disabledLabel)
+$Form.Controls.Add($disabledResultSaveLabel)
 $Form.Controls.Add($disabledResultListLabel)
 $Form.Controls.Add($disabledInfoTextBox)
 $Form.Controls.Add($disabledGauge)
@@ -475,11 +587,28 @@ $Form.Controls.Add($disabledBackground)
 #region NeverSignedIn
 $neverSignedInLabel = New-Object System.Windows.Forms.Label
 $neverSignedInLabel.Location = New-Object Drawing.Point ($disabledBackground.Width + ($Spacing * 2)),$Spacing
-$neverSignedInLabel.Text = 'Never signed in'
+$neverSignedInLabel.Text = 'Not signed in'
 $neverSignedInLabel.Font = $LabelFontH2
 $neverSignedInLabel.BackColor = $WrapperBackgroundColor
 $neverSignedInLabel.ForeColor = $LabelColor
-$neverSignedInLabel.ClientSize = '120,20'
+$neverSignedInLabel.ClientSize = '95,20'
+
+$neverSignedInResultSaveLabel = New-Object System.Windows.Forms.Label
+$neverSignedInResultSaveLabel.Location = New-Object Drawing.Point ($neverSignedInLabel.Location.X + 93),($neverSignedInLabel.Location.Y -2)
+$neverSignedInResultSaveLabel.Text = '<' #Using the Wingdings font, the number 2 represents a list-icon
+$neverSignedInResultSaveLabel.Font = $ListIconFont
+$neverSignedInResultSaveLabel.BackColor = $WrapperBackgroundColor
+$neverSignedInResultSaveLabel.ForeColor = $LabelColor
+$neverSignedInResultSaveLabel.ClientSize = '25,25'
+$neverSignedInResultSaveLabel.Add_MouseEnter({
+    $neverSignedInResultSaveLabel.ForeColor = $LabelColorEnter
+})
+$neverSignedInResultSaveLabel.Add_MouseLeave({
+    $neverSignedInResultSaveLabel.ForeColor = $LabelColor
+})
+$neverSignedInResultSaveLabel.add_click({
+    Out-CSVFile -Title "Never logged in $($UserType.ToLower()) users [$($Script:NeverSignedIn.count)]" -Type 'NeverSignedIn'
+})
 
 $neverSignedInResultListLabel = New-Object System.Windows.Forms.Label
 $neverSignedInResultListLabel.Location = New-Object Drawing.Point ($neverSignedInLabel.Location.X + 117),($neverSignedInLabel.Location.Y -2)
@@ -496,7 +625,7 @@ $neverSignedInResultListLabel.Add_MouseLeave({
 })
 $neverSignedInResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $NeverSignedIn | Out-GridView -Title "Never logged in $($UserType.ToLower()) users [$($NeverSignedIn.count)]" -OutputMode Multiple
+    $Selection = $Script:NeverSignedIn | Out-GridView -Title "Never logged in $($UserType.ToLower()) users [$($Script:NeverSignedIn.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
@@ -513,6 +642,7 @@ $neverSignedInBackground.ClientSize = '150,115'
 $neverSignedInBackground.BackColor = $WrapperBackgroundColor
 
 $Form.Controls.Add($neverSignedInLabel)
+$Form.Controls.Add($neverSignedInResultSaveLabel)
 $Form.Controls.Add($neverSignedInResultListLabel)
 $Form.Controls.Add($neverSignedInInfoTextBox)
 $Form.Controls.Add($neverSignedInGauge)
@@ -528,7 +658,24 @@ $inactiveLabel.Text = 'Inactive'
 $inactiveLabel.Font = $LabelFontH2
 $inactiveLabel.BackColor = $WrapperBackgroundColor
 $inactiveLabel.ForeColor = $LabelColor
-$inactiveLabel.ClientSize = '120,20'
+$inactiveLabel.ClientSize = '95,20'
+
+$inactiveResultSaveLabel = New-Object System.Windows.Forms.Label
+$inactiveResultSaveLabel.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 93),($inactiveLabel.Location.Y -2)
+$inactiveResultSaveLabel.Text = '<' #Using the Wingdings font, the number 2 represents a list-icon
+$inactiveResultSaveLabel.Font = $ListIconFont
+$inactiveResultSaveLabel.BackColor = $WrapperBackgroundColor
+$inactiveResultSaveLabel.ForeColor = $LabelColor
+$inactiveResultSaveLabel.ClientSize = '25,25'
+$inactiveResultSaveLabel.Add_MouseEnter({
+    $inactiveResultSaveLabel.ForeColor = $LabelColorEnter
+})
+$inactiveResultSaveLabel.Add_MouseLeave({
+    $inactiveResultSaveLabel.ForeColor = $LabelColor
+})
+$inactiveResultSaveLabel.add_click({
+    Out-CSVFile -Title "Inactive $($UserType.ToLower()) users [$($Script:InactiveUsers.count)]" -Type 'Inactive'
+})
 
 $inactiveResultListLabel = New-Object System.Windows.Forms.Label
 $inactiveResultListLabel.Location = New-Object Drawing.Point ($inactiveLabel.Location.X + 117),($inactiveLabel.Location.Y -2)
@@ -545,7 +692,7 @@ $inactiveResultListLabel.Add_MouseLeave({
 })
 $inactiveResultListLabel.add_click({
     Clear-Variable Selection -ErrorAction SilentlyContinue
-    $Selection = $InactiveUsers | Out-GridView -Title "Inactive $($UserType.ToLower()) users [$($InactiveUsers.count)]" -OutputMode Multiple
+    $Selection = $Script:InactiveUsers | Out-GridView -Title "Inactive $($UserType.ToLower()) users [$($Script:InactiveUsers.count)]" -OutputMode Multiple
     $Selection.userPrincipalName | Set-Clipboard
 })
 
@@ -562,6 +709,7 @@ $inactiveBackground.ClientSize = '150,115'
 $inactiveBackground.BackColor = $WrapperBackgroundColor
 
 $Form.Controls.Add($inactiveLabel)
+$Form.Controls.Add($inactiveResultSaveLabel)
 $Form.Controls.Add($inactiveResultListLabel)
 $Form.Controls.Add($inactiveInfoTextBox)
 $Form.Controls.Add($inactiveGauge)
