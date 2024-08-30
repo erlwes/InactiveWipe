@@ -6,7 +6,7 @@ The tool helps identify disabled, inactive and never-used guest users.
 ### 🟡 The GUI
 A graphical interface displays the results.
 
-![image](https://github.com/user-attachments/assets/7b414811-6545-4f0d-ac55-d272885c859b)
+![image](https://github.com/user-attachments/assets/571e31c8-2f4a-497e-940f-187ff52d1d2f)
 
 
 ### 🟡 List view
