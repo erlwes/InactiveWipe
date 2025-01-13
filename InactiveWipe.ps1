@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.1.0
+    .VERSION 1.1.1
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -19,7 +19,7 @@
         Version: 1.0.5 - Made the script usable in PowerShell 5.1. Some encoding was unsupported, and also errormessage was not supported on parameter validatescript
         Version: 1.0.6 - Fixed some errors that where thrown when users had no emailaddress. Issue #4.
         Version: 1.1.0 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
-
+        Version: 1.1.1 - Fixed logic flaw that displayed total users as 999 when result was larget than 1k. Thank you "myatix".
 #>
 
 <#
@@ -187,7 +187,7 @@ Function Update-Text {
 
     $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
     if (!$memberMode) {
-        $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($result.value).count) users are $UserPlural (~$((($($TotalCount / ($result.value).count)) * 100) -replace "\..+$")%)")
+        $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($Allresults.value).count) users are $UserPlural (~$((($($TotalCount / ($Allresults.value).count)) * 100) -replace "\..+$")%)")
         $InsightsInfoTextBox.AppendText("`n`nGuests are distributed across $(($EmailDomains | Select-Object -Unique).count) unique email domains")
     }
     else {
