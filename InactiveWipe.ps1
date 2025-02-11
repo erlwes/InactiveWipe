@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.1.1
+    .VERSION 1.1.2
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -20,6 +20,7 @@
         Version: 1.0.6 - Fixed some errors that where thrown when users had no emailaddress. Issue #4.
         Version: 1.1.0 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
         Version: 1.1.1 - Fixed logic flaw that displayed total users as 999 when result was larget than 1k. Thank you "myatix".
+        Version: 1.1.2 - Functionality: Adding sponsors displayname to the query and results. Fix: Some input validation and minor formatting changes.
 #>
 
 <#
@@ -63,7 +64,7 @@ Param (
     [Parameter(Mandatory = $true)]
     [string]$AppSecret,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false)][ValidateRange(1,3650)]
     [int]$ThresholdDaysAgo = 180,
 
     [Parameter(Mandatory = $false)]
@@ -186,7 +187,7 @@ Function Update-Text {
     $InsightsInfoTextBox.SelectionColor = $LabelColor
 
     $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
-    if (!$memberMode) {
+    if (!$memberMode) {        
         $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($Allresults.value).count) users are $UserPlural (~$((($($TotalCount / ($Allresults.value).count)) * 100) -replace "\..+$")%)")
         $InsightsInfoTextBox.AppendText("`n`nGuests are distributed across $(($EmailDomains | Select-Object -Unique).count) unique email domains")
     }
@@ -312,7 +313,7 @@ $header = @{
     'Authorization' = "$($Token.token_type) $($Token.access_token)"
     'Content-type'  = 'application/json'
 }
-$url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled,createdDateTime,creationType,externalUserState,userType,companyName,displayName,jobTitle,mail,signInActivity,userPrincipalName,AssignedLicenses"
+$url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled,createdDateTime,creationType,externalUserState,userType,companyName,displayName,jobTitle,mail,signInActivity,userPrincipalName,AssignedLicenses&`$expand=sponsors(`$select=id,displayName)"
 
 try {
     $Result = Invoke-RestMethod -Method GET -headers $header -Uri $url -ErrorAction Stop
@@ -365,7 +366,7 @@ $AllResults | ForEach-Object {
 
     if ($user.UserType -eq $UserType) {
         
-        Clear-Variable DaysSinceLastLogin, DateLastNonIntLogin, DaysSinceLastNonIntLogin, DateLastLogin, UserObj -ErrorAction SilentlyContinue
+        Clear-Variable DaysSinceLastLogin, DateLastNonIntLogin, DaysSinceLastNonIntLogin, DateLastLogin, UserObj, mail, mailDomain, sponsorDisplayName -ErrorAction SilentlyContinue
         
         # Calculate days since last login
         if ($user.signInActivity.lastSignInDateTime) {
@@ -416,19 +417,28 @@ $AllResults | ForEach-Object {
             $mail = '';$mailDomain=''
         }
 
+        # Sponsor DisplayName
+        if ($user.sponsors) {
+            $sponsorDisplayName = $user.sponsors.displayName
+            }
+        else {
+            $sponsorDisplayName = $null
+        }
+
         $UserObj = [pscustomobject]@{
             UserType                  = $user.UserType
-            accountEnabled            = $user.accountEnabled
-            creationType              = $user.creationType
-            externalUserState         = $user.externalUserState
-            createdDateTime           = $createdDateTime
-            companyName               = $user.companyName
-            displayName               = $user.displayName
-            jobTitle                  = $user.jobTitle
-            userPrincipalName         = ($user.userPrincipalName).ToLower()
+            AccountEnabled            = $user.accountEnabled
+            CreationType              = $user.creationType
+            ExternalUserState         = $user.externalUserState
+            CreatedDateTime           = $createdDateTime
+            CompanyName               = $user.companyName
+            DisplayName               = $user.displayName
+            JobTitle                  = $user.jobTitle
+            UserPrincipalName         = ($user.userPrincipalName).ToLower()
             AssignedLicenses          = $user.AssignedLicenses.skuId
-            mail                      = $mail
-            mailDomain                = $mailDomain
+            Sponsor                   = $SponsorDisplayName
+            Mail                      = $mail
+            MailDomain                = $mailDomain
             DateLastLogin             = $DateLastLogin
             DaysSinceLastLogin        = $DaysSinceLastLogin
             DateLastNonIntLogin       = $DateLastNonIntLogin
