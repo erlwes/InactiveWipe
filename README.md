@@ -1,3 +1,6 @@
+![PowerShell](https://img.shields.io/badge/PowerShell-5+-blue)
+![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/InactiveWipe)
+
 # InactiveWipe
 A graphical interface script to help stay in control of guest access in Entra ID.
 The tool helps identify disabled, inactive and never-used guest users.
