@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-    .VERSION 1.1.2
+    .VERSION 1.1.6
     .GUID d885e931-8339-4f02-9fd2-9d5d9c32a8cc
     .AUTHOR Erlend Westervik
     .COMPANYNAME
@@ -21,6 +21,8 @@
         Version: 1.1.0 - Added save button and functionality for exporting results to CSV-files. Added license insights for "member mode".
         Version: 1.1.1 - Fixed logic flaw that displayed total users as 999 when result was larget than 1k. Thank you "myatix".
         Version: 1.1.2 - Functionality: Adding sponsors displayname to the query and results. Fix: Some input validation and minor formatting changes.
+        Version: 1.1.6 - Added support for auth through Connect-MgGraph as an alternative to app registration, split in different parameter sets.      
+
 #>
 
 <#
@@ -42,6 +44,9 @@
 .PARAMETER AppSecret
     Specifies the Application Secret for authentication against Microsoft Graph API.
 
+.PARAMETER UseMgGraph
+    Connect interactively using Connect-MgGraph, instead of app registration.
+
 .PARAMETER ThresholdDaysAgo
     Optional parameter to define the inactivity threshold in days. Defaults to 180 days.
 
@@ -51,24 +56,33 @@ Optional switch parameter to toggle between processing guest or member accounts.
 .EXAMPLE
     .\InactiveWipe.ps1 -TenantId <your-tenant-id> -AppId <your-app-id> -AppSecret <your-app-secret> -ThresholdDaysAgo 90
     
-    This example retrieves all guest user accounts that have been inactive for the last 90 days and outputs the analysis results.
+    Connect using app-registration and retrieve all guest user accounts that have been inactive for the last 90 days and outputs the analysis results.
+
+.EXAMPLE
+    .\InactiveWipe.ps1 -UseMgGraph
+    
+    Connect interactively using Connect-MgGraph and retrieve all guest user accounts that have been inactive for the last 180 days (default) and outputs the analysis results.
+    
 #>
 
 Param (
-    [Parameter(Mandatory = $true)][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
+    [Parameter(Mandatory = $true, ParameterSetName="AppRegistration")][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
     [string]$TenantId,
 
-    [Parameter(Mandatory = $true)][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
+    [Parameter(Mandatory = $true, ParameterSetName="AppRegistration")][ValidateScript({$_  -match "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"})]
     [string]$AppId,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, ParameterSetName="AppRegistration")]
     [string]$AppSecret,
+
+    [Parameter(Mandatory = $true, ParameterSetName="MgGraph")]
+    [switch]$UseMgGraph,
 
     [Parameter(Mandatory = $false)][ValidateRange(1,3650)]
     [int]$ThresholdDaysAgo = 180,
 
     [Parameter(Mandatory = $false)]
-    [switch]$MemberMode #EXPERIMENTAL!
+    [switch]$MemberMode
 
 )
 '';''
@@ -92,6 +106,11 @@ else {
     $UserType = 'Guest'
     $UserPlural = 'guests'
 }
+
+if ($UseMgGraph) {
+    Import-Module Microsoft.Graph.Authentication    
+}
+
 $Selection = ''
 
 #Region Functions
@@ -188,7 +207,8 @@ Function Update-Text {
 
     $InsightsInfoTextBox.SelectionFont = (New-Object Drawing.Font("Calibri", '10'))
     if (!$memberMode) {        
-        $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($Allresults.value).count) users are $UserPlural (~$((($($TotalCount / ($Allresults.value).count)) * 100) -replace "\..+$")%)")
+        $InsightsInfoTextBox.AppendText("`n`n$($totalCount) out of $(($Allresults.value).count) users are $UserPlural`n (~$((($($TotalCount / ($Allresults.value).count)) * 100) -replace "(\.|\,).+$" )%)")
+        
         $InsightsInfoTextBox.AppendText("`n`nGuests are distributed across $(($EmailDomains | Select-Object -Unique).count) unique email domains")
     }
     else {
@@ -286,67 +306,119 @@ Function Out-CSVFile {
 '';Write-Log -Level 4 -Message  'Start'
 
 #Region GraphAuth
-$url = "https://login.microsoftonline.com/$tenantId/oauth2/token"
-$resource = 'https://graph.microsoft.com/'
-$restbody = @{
-    grant_type    = 'client_credentials'
-    client_id     = $appId
-    client_secret = $AppSecret
-    resource      = $resource
+if ($UseMgGraph) {
+    Import-Module Microsoft.Graph.Authentication
+    Connect-MgGraph -Scope "User.Read.All", "AuditLog.Read.All" -NoWelcome
+    
+    $context = Get-MgContext
+    
+    if ($context) {
+        Write-Log -Level 0 -Message "Get-MgContext - Found context with account: $($context.account)"
+        if ($context.Scopes -match 'User.Read.All' -and 'AuditLog.Read.All') {
+           Write-Log -Level 0 -Message "Get-MgContext - Scopes are ok" 
+        }
+        else {
+            Write-Log -Level 2 -Message "Get-MgContext - Required scopes are missing."
+            Break
+        }
+    }
+    else {
+        Write-Log -Level 0 -Message ""
+    }
 }
-try {
-    $token = Invoke-RestMethod -Method POST -Uri $url -Body $restbody -ErrorAction Stop
-    Write-Log -Level 1 -Message 'Invoke-RestMethod: Auth'
-    Remove-Variable -Name tenantId, appId, appSecret, restbody -ErrorAction SilentlyContinue
-}
-catch {
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: URL: '$url'"
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: Exception: $($_.Exception.Message)"
-    Write-Log -Level 2 -Message "Closing script - can not continue without auth"
-    Throw
+else {
+    $url = "https://login.microsoftonline.com/$tenantId/oauth2/token"
+    $resource = 'https://graph.microsoft.com/'
+    $restbody = @{
+        grant_type    = 'client_credentials'
+        client_id     = $appId
+        client_secret = $AppSecret
+        resource      = $resource
+    }
+    try {
+        $token = Invoke-RestMethod -Method POST -Uri $url -Body $restbody -ErrorAction Stop
+        Write-Log -Level 1 -Message 'Invoke-RestMethod: Auth'
+        Remove-Variable -Name tenantId, appId, appSecret, restbody -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: URL: '$url'"
+        Write-Log -Level 3 -Message "Invoke-RestMethod - Auth error: Exception: $($_.Exception.Message)"
+        Write-Log -Level 2 -Message "Closing script - can not continue without auth"
+        Throw
+    }
 }
 #endregion GraphAuth
 
 #Region GraphQuery
-$AllResults = @()
-$header = @{
-    'Authorization' = "$($Token.token_type) $($Token.access_token)"
-    'Content-type'  = 'application/json'
-}
-$url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled,createdDateTime,creationType,externalUserState,userType,companyName,displayName,jobTitle,mail,signInActivity,userPrincipalName,AssignedLicenses&`$expand=sponsors(`$select=id,displayName)"
 
-try {
-    $Result = Invoke-RestMethod -Method GET -headers $header -Uri $url -ErrorAction Stop
+$AllResults = @()
+$url = "https://graph.microsoft.com/beta/users?`$top=999&`$select=accountEnabled,createdDateTime,creationType,externalUserState,userType,companyName,displayName,jobTitle,mail,signInActivity,userPrincipalName,assignedLicenses&`$expand=sponsors(`$select=id,displayName)"
+
+if ($UseMgGraph) {    
     Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"
-    $AllResults += $Result.value
-    $NextPage = $Result.'@odata.nextLink'
-    
-    $i = 2
-    While ($null -ne $NextPage) {
+    $i = 1
+    do {        
         try {
-            Clear-Variable AdditionalResults -ErrorAction SilentlyContinue
-            $AdditionalResults = Invoke-RestMethod -Method GET -headers $header -Uri $NextPage -ErrorAction Stop
-            Write-Log -Level 1 -Message "Invoke-RestMethod: Query, page $i '$($url.Substring(0, 55) + '...')'"
-            $AllResults += $AdditionalResults.value
-            $NextPage = $AdditionalResults.'@odata.nextLink'
-            $i ++
+            $result = Invoke-MgGraphRequest -Method GET -Uri $url -ErrorAction Stop
+            Write-Log -Level 1 -Message "Invoke-RestMethod: Query, page $i ($($AllResults.count))"
         }
         catch {
             Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exception.Message)"
+            $Error[0]
+            Break
         }
-    }
-    Remove-Variable -Name token -ErrorAction SilentlyContinue
+        
+        $converted = $result.value | ForEach-Object {
+            [PSCustomObject]$_ 
+        }
+        $AllResults += $converted
+        $url = $result.'@odata.nextLink'
+        
+        $i++
+    } while ($null -ne $url)    
 }
-catch {    
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: URL: '$url'"
-    Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: Exception: $($_.Exception.Message)"
-    Write-Log -Level 2 -Message "Closing script - can not continue without graph query results"    
-    Throw
+else {
+    $header = @{
+        'Authorization' = "$($Token.token_type) $($Token.access_token)"
+        'Content-type'  = 'application/json'
+    }
+    try {
+        $Result = Invoke-RestMethod -Method GET -headers $header -Uri $url -ErrorAction Stop
+        Write-Log -Level 1 -Message "Invoke-RestMethod: Query '$($url.Substring(0, 55) + '...')'"
+        $AllResults += $Result.value
+        $NextPage = $Result.'@odata.nextLink'
+    
+        $i = 2
+        While ($null -ne $NextPage) {
+            try {
+                Clear-Variable AdditionalResults -ErrorAction SilentlyContinue
+                $AdditionalResults = Invoke-RestMethod -Method GET -headers $header -Uri $NextPage -ErrorAction Stop
+                Write-Log -Level 1 -Message "Invoke-RestMethod: Query, page $i '$($url.Substring(0, 55) + '...')'"
+                $AllResults += $AdditionalResults.value
+                $NextPage = $AdditionalResults.'@odata.nextLink'
+                $i ++
+            }
+            catch {
+                Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: '$url' $($_.Exception.Message)"                
+            }
+        }
+        Remove-Variable -Name token -ErrorAction SilentlyContinue
+    }
+    catch {    
+        Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: URL: '$url'"
+        Write-Log -Level 3 -Message "Invoke-RestMethod - Query error: Exception: $($_.Exception.Message)"
+        Break
+    }
 }
 #endregion GraphQuery
 
 # Uncomment to inspect raw results and quit
 #$result.value | Out-GridView;break
+
+if (!$AllResults) {
+    Write-Log -Level 3 -Message "Closing script - No results. Can not continue without graph query results"
+    Break
+}
 
 #Region ProcessGuests
 Write-Log -Level 0 -Message  "Process Graph-results - Start"
